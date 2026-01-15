@@ -1,9 +1,9 @@
 {
   "experienceName": "Aetheria: The Omni-Verse",
   "description": "Explore infinite realms, collect and breed spirits, engage in action combat, and build your own realm in this multiplayer adventure.",
-  "universeId": "PLACEHOLDER_UNIVERSE_ID",
-  "placeId": "PLACEHOLDER_PLACE_ID",
-  "experienceUrl": "https://www.roblox.com/games/PLACEHOLDER_PLACE_ID/",
+  "universeId": "54992c9727795896097",
+  "placeId": "54992c9727795896097",
+  "experienceUrl": "https://www.roblox.com/games/54992c9727795896097/",
   "createdAt": "2026-01-15T02:39:00.000Z",
-  "instructions": "To complete setup: 1) Open Roblox Studio, 2) File > Publish to Roblox As, 3) Create experience with name above, 4) Replace PLACEHOLDER values with actual IDs from Studio Home tab, 5) Run: node update-rojo-config.js"
+  "instructions": "Experience created! Rojo server configured. Use 'rojo serve' to start the server, then click Connect in Roblox Studio plugin."
 }

@@ -1,6 +1,5 @@
 {
   "name": "AetheriaOmniVerse",
-  "servePlaceIds": ["PLACEHOLDER_PLACE_ID"],
   "tree": {
     "$className": "DataModel",
     "ReplicatedStorage": {
