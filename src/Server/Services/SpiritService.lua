@@ -16,6 +16,7 @@ local Constants = require(ReplicatedStorage.Shared.Modules.Constants)
 local SpiritService = {}
 
 function SpiritService:Init()
+	print("[SpiritService] Init called")
 	-- Listen for players
 	Players.PlayerAdded:Connect(function(player)
 		self:OnPlayerAdded(player)
@@ -30,6 +31,7 @@ function SpiritService:Init()
 end
 
 function SpiritService:OnPlayerAdded(player: Player)
+	print(`[SpiritService] OnPlayerAdded called for {player.Name}`)
 	-- Wait for data to be ready
 	local data = nil
 	for i = 1, 10 do -- Try for 10 seconds

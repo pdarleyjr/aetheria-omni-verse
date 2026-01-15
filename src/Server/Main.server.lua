@@ -25,21 +25,33 @@ print("  Aetheria: The Omni-Verse - Server Starting")
 print("==============================================")
 
 -- Service requires
-local ServicesFolder = ServerScriptService.Server.Services
+local ServerFolder = ServerScriptService:WaitForChild("Server", 10)
+if not ServerFolder then
+	error("CRITICAL: Server folder not found in ServerScriptService")
+end
+
+local ServicesFolder = ServerFolder:WaitForChild("Services", 10)
+if not ServicesFolder then
+	error("CRITICAL: Services folder not found in ServerScriptService.Server")
+end
+
 local services = {}
 
 -- Dynamically load services
+print(`[Loader] Loading services from {ServicesFolder:GetFullName()}`)
 for _, module in ipairs(ServicesFolder:GetChildren()) do
 	if module:IsA("ModuleScript") then
+		print(`[Loader] Attempting to require {module.Name}...`)
 		local success, result = pcall(function()
 			return require(module)
 		end)
 		
 		if success then
 			table.insert(services, { Name = module.Name, Service = result })
-			print(`[Loader] Loaded {module.Name}`)
+			print(`[Loader] Successfully loaded {module.Name}`)
 		else
-			warn(`[Loader] Failed to load {module.Name}: {result}`)
+			warn(`[Loader] CRITICAL ERROR: Failed to load {module.Name}: {result}`)
+			warn(debug.traceback())
 		end
 	end
 end
@@ -58,6 +70,7 @@ local function initializeServices()
 	print("\n--- Initializing Services ---")
 	for _, serviceData in ipairs(services) do
 		if type(serviceData.Service.Init) == "function" then
+			print(`[Loader] Initializing {serviceData.Name}...`)
 			task.spawn(function()
 				local success, err = pcall(function()
 					serviceData.Service:Init()
@@ -66,8 +79,11 @@ local function initializeServices()
 					print(`✓ {serviceData.Name} initialized`)
 				else
 					warn(`[ERROR] {serviceData.Name} Init failed: {err}`)
+					warn(debug.traceback())
 				end
 			end)
+		else
+			print(`[Loader] {serviceData.Name} has no Init method`)
 		end
 	end
 end
@@ -77,6 +93,7 @@ local function startServices()
 	print("\n--- Starting Services ---")
 	for _, serviceData in ipairs(services) do
 		if type(serviceData.Service.Start) == "function" then
+			print(`[Loader] Starting {serviceData.Name}...`)
 			task.spawn(function()
 				local success, err = pcall(function()
 					serviceData.Service:Start()
@@ -85,8 +102,11 @@ local function startServices()
 					print(`✓ {serviceData.Name} started`)
 				else
 					warn(`[ERROR] {serviceData.Name} Start failed: {err}`)
+					warn(debug.traceback())
 				end
 			end)
+		else
+			print(`[Loader] {serviceData.Name} has no Start method`)
 		end
 	end
 end
