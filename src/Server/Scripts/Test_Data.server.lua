@@ -37,13 +37,13 @@ local function onPlayerAdded(player)
 		data = DataService.GetData(player)
 		if not data then
 			task.wait(0.5)
-			attempts += 1
+			attempts = attempts + 1
 		end
 	end
 
 	if data then
 		print("DATA TEST: Loaded Essence: " .. data.Currencies.Essence)
-		data.Currencies.Essence += 50
+		data.Currencies.Essence = data.Currencies.Essence + 50
 		print("DATA TEST: Added 50 Essence. Saving...")
 		
 		-- Spirit Check
@@ -54,15 +54,15 @@ local function onPlayerAdded(player)
 		
 		if data.Inventory and data.Inventory.Spirits then
 			for _, spirit in pairs(data.Inventory.Spirits) do
-				spiritCount += 1
+				spiritCount = spiritCount + 1
 				if firstSpiritName == "None" then
 					firstSpiritName = spirit.Name
 				end
 			end
 		end
 		
-		print(`SPIRIT CHECK: Inventory Count = {spiritCount}`)
-		print(`SPIRIT CHECK: First Spirit = {firstSpiritName}`)
+		print("SPIRIT CHECK: Inventory Count = " .. spiritCount)
+		print("SPIRIT CHECK: First Spirit = " .. firstSpiritName)
 		
 		-- Realm Test
 		print("REALM TEST: Starting...")
@@ -74,7 +74,7 @@ local function onPlayerAdded(player)
 		local realmModel = workspace:WaitForChild("PlayerRealms"):FindFirstChild(realmName)
 		
 		if realmModel and realmModel.PrimaryPart then
-			print(`REALM CHECK: Found Island at {realmModel.PrimaryPart.Position}`)
+			print("REALM CHECK: Found Island at " .. realmModel.PrimaryPart.Position)
 		else
 			warn("REALM CHECK: Island NOT found in workspace.PlayerRealms!")
 		end
@@ -88,6 +88,26 @@ local function onPlayerAdded(player)
 		
 		local income = RealmService:CalculatePassiveIncome(player)
 		print("REALM TEST: Passive Income: " .. income)
+		
+		-- Hub Return Test
+		task.wait(3)
+		print("TEST COMPLETE: Teleported to Hub for Combat Testing")
+		
+		-- Teleport to Hub
+		-- We need to require WorkspaceService dynamically or assume it's loaded
+		local success, WorkspaceService = pcall(function()
+			return require(ServerScriptService.Server.Services.WorkspaceService)
+		end)
+		
+		if success and WorkspaceService and WorkspaceService.TeleportToHub then
+			WorkspaceService:TeleportToHub(player)
+		else
+			-- Manual fallback
+			local hubSpawn = workspace:FindFirstChild("Hub") and workspace.Hub:FindFirstChild("SpawnLocation")
+			if hubSpawn then
+				player.Character:PivotTo(hubSpawn.CFrame + Vector3.new(0, 5, 0))
+			end
+		end
 	else
 		warn("DATA TEST: Could not load data for " .. player.Name)
 	end

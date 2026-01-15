@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Constants = require(ReplicatedStorage.Shared.Modules.Constants)
+local DataService = require(script.Parent.DataService)
 
 local CombatService = {}
 local lastAttackTime = {}
@@ -50,14 +51,27 @@ function CombatService:HandleAttack(player: Player, target: Instance?)
 		return -- Too far
 	end
 	
-	-- 3. Apply Damage
-	humanoid:TakeDamage(Constants.COMBAT.DAMAGE)
-	print(string.format("[CombatService] %s dealt %d damage to %s", player.Name, Constants.COMBAT.DAMAGE, target.Name))
+	-- 3. Calculate Damage (Base + Spirit)
+	local damage = Constants.COMBAT.DAMAGE
+	local bonus = 0
 	
-	-- 4. Replicate Visuals
+	local data = DataService.GetData(player)
+	if data and data.Inventory and data.Inventory.Equipped and data.Inventory.Equipped.Main then
+		local spiritId = data.Inventory.Equipped.Main
+		local spirit = data.Inventory.Spirits[spiritId]
+		if spirit and spirit.Stats then
+			bonus = spirit.Stats.Atk or 0
+			damage = damage + bonus
+		end
+	end
+	
+	-- 4. Apply Damage
+	humanoid:TakeDamage(damage)
+	print(string.format("[CombatService] %s dealt %d damage (%d Base + %d Bonus) to %s", player.Name, damage, Constants.COMBAT.DAMAGE, bonus, target.Name))
+	
+	-- 5. Replicate Visuals
 	local showDamageRemote = Remotes.GetEvent("ShowDamage")
-	-- Fire to all clients so everyone sees the damage number
-	showDamageRemote:FireAllClients(rootPart, Constants.COMBAT.DAMAGE, false) -- false for IsCritical (placeholder)
+	showDamageRemote:FireAllClients(rootPart, damage, false) -- false for IsCritical (placeholder)
 end
 
 -- Cleanup on player leaving
