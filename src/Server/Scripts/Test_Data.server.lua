@@ -16,6 +16,19 @@ while not DataService do
 	end
 end
 
+-- Wait for RealmService
+local RealmService
+while not RealmService do
+	local success, result = pcall(function()
+		return require(ServerScriptService.Server.Services.RealmService)
+	end)
+	if success then
+		RealmService = result
+	else
+		task.wait(0.1)
+	end
+end
+
 local function onPlayerAdded(player)
 	-- Poll for data availability
 	local data
@@ -50,6 +63,29 @@ local function onPlayerAdded(player)
 		
 		print(`SPIRIT CHECK: Inventory Count = {spiritCount}`)
 		print(`SPIRIT CHECK: First Spirit = {firstSpiritName}`)
+		
+		-- Realm Test
+		print("REALM TEST: Starting...")
+		
+		-- Wait for RealmService to initialize realm
+		task.wait(1)
+		
+		local realmModel = RealmService.RealmInstances[player.UserId]
+		if realmModel then
+			print("REALM TEST: Realm Instance found: " .. realmModel.Name)
+		else
+			warn("REALM TEST: Realm Instance NOT found!")
+		end
+		
+		local success = RealmService:PlaceFurniture(player, "chair_01", CFrame.new(10, 5, 10))
+		if success then
+			print("REALM TEST: Furniture placed successfully")
+		else
+			warn("REALM TEST: Failed to place furniture")
+		end
+		
+		local income = RealmService:CalculatePassiveIncome(player)
+		print("REALM TEST: Passive Income: " .. income)
 	else
 		warn("DATA TEST: Could not load data for " .. player.Name)
 	end
