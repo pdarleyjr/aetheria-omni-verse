@@ -3,6 +3,8 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
+local Constants = require(ReplicatedStorage.Shared.Modules.Constants)
+
 -- Assuming DataService is a sibling
 local DataService = require(script.Parent.DataService)
 
@@ -95,13 +97,19 @@ function RealmService:CreateRealmInstance(player: Player)
 	
 	local base = Instance.new("Part")
 	base.Name = "Base"
-	base.Size = Vector3.new(100, 10, 100) -- Thickness 10 as requested
+	base.Size = Vector3.new(Constants.REALM_ISLAND_SIZE, 10, Constants.REALM_ISLAND_SIZE) -- Thickness 10 as requested
 	base.Material = Enum.Material.Grass
 	base.Color = Color3.fromRGB(75, 151, 75) -- Green
 	base.Anchored = true
-	-- Using a safe multiplier for UserId to avoid floating point errors with huge numbers
-	-- Stacking along Z axis
-	base.Position = Vector3.new(0, 500, (player.UserId % 10000) * 200)
+	
+	-- 2D Grid Layout
+	local gridWidth = Constants.REALM_GRID_WIDTH
+	local spacing = Constants.REALM_GRID_SPACING
+	
+	local gridX = player.UserId % gridWidth
+	local gridZ = math.floor(player.UserId / gridWidth)
+	
+	base.Position = Vector3.new(gridX * spacing, 500, gridZ * spacing)
 	base.Parent = realmModel
 	realmModel.PrimaryPart = base
 	
@@ -132,10 +140,13 @@ function RealmService:TeleportToRealm(visitor: Player, ownerId: number)
 		-- Streaming Safety: Request area to load before teleporting
 		visitor:RequestStreamAroundAsync(targetCFrame.Position)
 		
-		-- Anchor character briefly to prevent falling through floor
+		-- Hard Anchor Sequence
 		local rootPart = visitor.Character.PrimaryPart
 		if rootPart then
 			rootPart.Anchored = true
+			rootPart.AssemblyLinearVelocity = Vector3.zero
+			rootPart.AssemblyAngularVelocity = Vector3.zero
+			
 			visitor.Character:PivotTo(targetCFrame)
 			
 			task.delay(2, function() -- Wait 2 seconds as requested

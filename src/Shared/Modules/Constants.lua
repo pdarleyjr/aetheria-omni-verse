@@ -35,6 +35,10 @@ Constants.RARITY = {
 	Legendary = 1
 }
 
+Constants.REALM_ISLAND_SIZE = 200
+Constants.REALM_GRID_SPACING = 1000
+Constants.REALM_GRID_WIDTH = 100
+
 Constants.STARTING_SPIRIT = "Ignis"
 
 return Constants

@@ -53,6 +53,9 @@ function WorkspaceService:TeleportToHub(player: Player)
 		local rootPart = player.Character.PrimaryPart
 		if rootPart then
 			rootPart.Anchored = true
+			rootPart.AssemblyLinearVelocity = Vector3.zero
+			rootPart.AssemblyAngularVelocity = Vector3.zero
+			
 			player.Character:PivotTo(targetCFrame)
 			
 			task.delay(1, function()
