@@ -42,9 +42,11 @@ local function onPlayerAdded(player)
 	end
 
 	if data then
-		print("DATA TEST: Loaded Essence: " .. data.Currencies.Essence)
-		data.Currencies.Essence = data.Currencies.Essence + 50
-		print("DATA TEST: Added 50 Essence. Saving...")
+		print("DATA TEST: Loaded Essence: " .. tostring(data.Currencies.Essence))
+		
+		-- Use AddCurrency to trigger HUD update
+		DataService.AddCurrency(player, "Essence", 50)
+		print("DATA TEST: Added 50 Essence via AddCurrency. Saving...")
 		
 		-- Spirit Check
 		task.wait(2) -- Wait for SpiritService to process
@@ -61,8 +63,8 @@ local function onPlayerAdded(player)
 			end
 		end
 		
-		print("SPIRIT CHECK: Inventory Count = " .. spiritCount)
-		print("SPIRIT CHECK: First Spirit = " .. firstSpiritName)
+		print("SPIRIT CHECK: Inventory Count = " .. tostring(spiritCount))
+		print("SPIRIT CHECK: First Spirit = " .. tostring(firstSpiritName))
 		
 		-- Realm Test
 		print("REALM TEST: Starting...")
@@ -87,7 +89,7 @@ local function onPlayerAdded(player)
 		end
 		
 		local income = RealmService:CalculatePassiveIncome(player)
-		print("REALM TEST: Passive Income: " .. income)
+		print("REALM TEST: Passive Income: " .. tostring(income))
 		
 		-- Hub Return Test
 		task.wait(3)

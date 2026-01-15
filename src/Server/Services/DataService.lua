@@ -3,6 +3,9 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local UpdateHUDEvent = Remotes.GetEvent("UpdateHUD")
+
 -- Assume ProfileService is in Shared/Modules based on previous step
 -- In a real scenario, it might be in ServerScriptService, but we placed the mock in Shared.
 local ProfileService = require(ReplicatedStorage.Shared.Modules.ProfileService)
@@ -46,6 +49,7 @@ local function PlayerAdded(player: Player)
 		if player:IsDescendantOf(Players) then
 			Profiles[player] = profile
 			print("[DataService] Profile loaded for " .. player.Name)
+			DataService.UpdateClientHUD(player)
 		else
 			-- Player left before the profile loaded:
 			profile:Release()
@@ -71,6 +75,23 @@ function DataService.GetData(player: Player)
 		return profile.Data
 	end
 	return nil
+end
+
+function DataService.UpdateClientHUD(player: Player)
+	local data = DataService.GetData(player)
+	if data then
+		UpdateHUDEvent:FireClient(player, data)
+	end
+end
+
+function DataService.AddCurrency(player: Player, currency: string, amount: number)
+	local data = DataService.GetData(player)
+	if data and data.Currencies and data.Currencies[currency] ~= nil then
+		data.Currencies[currency] = data.Currencies[currency] + amount
+		DataService.UpdateClientHUD(player)
+		return true
+	end
+	return false
 end
 
 -- // INITIALIZATION //
