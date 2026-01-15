@@ -15,7 +15,7 @@ function WorkspaceService:Start()
 	self:CreateBiomePads()
 	self:CreateTestDummy()
 	self:SetupEnvironment()
-	self:CreateGachaMachine()
+	self:SpawnSummoningAltar()
 end
 
 function WorkspaceService:CreateSpawnHub()
@@ -88,7 +88,8 @@ function WorkspaceService:CreateTestDummy()
 	local humanoid = Instance.new("Humanoid")
 	humanoid.MaxHealth = 1000
 	humanoid.Health = 1000
-	humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Always
+	humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Viewer
+	humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOn
 	humanoid.Parent = dummy
 	
 	local root = Instance.new("Part")
@@ -120,34 +121,33 @@ function WorkspaceService:SetupEnvironment()
 	lighting.TimeOfDay = "00:00:00"
 end
 
-function WorkspaceService:CreateGachaMachine()
+function WorkspaceService:SpawnSummoningAltar()
 	local machine = Instance.new("Part")
-	machine.Name = "GachaMachine"
+	machine.Name = "SummoningAltar"
+	machine.Shape = Enum.PartType.Cylinder
 	machine.Size = Vector3.new(6, 8, 6)
-	machine.Position = Vector3.new(-30, 5, -30)
+	machine.Position = Vector3.new(0, 5, -50)
 	machine.Anchored = true
 	machine.Color = Color3.fromRGB(100, 50, 200)
 	machine.Material = Enum.Material.Neon
 	machine.Parent = Workspace
 	
+	-- Rotate cylinder to stand up
+	machine.CFrame = CFrame.new(machine.Position) * CFrame.Angles(0, 0, math.rad(90))
+	
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.ObjectText = "Spirit Summon"
-	prompt.ActionText = "Summon"
+	prompt.ActionText = "Summon (100 Essence)"
 	prompt.KeyboardKeyCode = Enum.KeyCode.E
 	prompt.RequiresLineOfSight = false
 	prompt.Parent = machine
 	
-	prompt.Triggered:Connect(function(player)
-		print(player.Name .. " interacted with Gacha Machine")
-	end)
-	
 	local sg = Instance.new("SurfaceGui")
-	sg.Face = Enum.NormalId.Front
+	sg.Face = Enum.NormalId.Top -- Top because cylinder is rotated
 	sg.Parent = machine
 	
 	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(1, 0, 0.5, 0)
-	label.Position = UDim2.new(0, 0, 0.2, 0)
+	label.Size = UDim2.new(1, 0, 1, 0)
 	label.BackgroundTransparency = 1
 	label.Text = "SPIRIT\nSUMMON"
 	label.TextColor3 = Color3.new(1, 1, 1)
