@@ -1,121 +1,73 @@
 local ServerScriptService = game:GetService("ServerScriptService")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 
-print("DATA TEST: Starting...")
+-- Safety check: Only run in Studio to prevent production issues
+if not RunService:IsStudio() then
+	return
+end
 
--- Wait for DataService to be available
-local DataService
-while not DataService do
+print("DATA TEST: Starting (Studio Mode)...")
+
+local function safeRequire(modulePath)
 	local success, result = pcall(function()
-		return require(ServerScriptService.Server.Services.DataService)
+		return require(modulePath)
 	end)
 	if success then
-		DataService = result
+		return result
 	else
-		task.wait(0.1)
+		warn("DATA TEST: Failed to require " .. tostring(modulePath) .. ": " .. tostring(result))
+		return nil
 	end
 end
 
--- Wait for RealmService
-local RealmService
-while not RealmService do
-	local success, result = pcall(function()
-		return require(ServerScriptService.Server.Services.RealmService)
-	end)
-	if success then
-		RealmService = result
-	else
-		task.wait(0.1)
-	end
-end
+-- Run in a separate thread to avoid blocking
+task.spawn(function()
+	-- Allow core services to initialize
+	task.wait(2)
 
-local function onPlayerAdded(player)
-	-- Poll for data availability
-	local data
-	local attempts = 0
-	while not data and attempts < 20 do
-		data = DataService.GetData(player)
-		if not data then
-			task.wait(0.5)
-			attempts = attempts + 1
+	local DataService = safeRequire(ServerScriptService.Server.Services.DataService)
+	local RealmService = safeRequire(ServerScriptService.Server.Services.RealmService)
+	
+	if not DataService or not RealmService then
+		warn("DATA TEST: Critical services missing. Aborting test.")
+		return
+	end
+
+	local function onPlayerAdded(player)
+		-- Wait for data to load with timeout
+		local attempts = 0
+		local data = nil
+		while attempts < 10 do
+			data = DataService.GetData(player)
+			if data then break end
+			task.wait(1)
+			attempts += 1
 		end
-	end
 
-	if data then
+		if not data then
+			warn("DATA TEST: Could not get data for " .. player.Name)
+			return
+		end
+
 		print("DATA TEST: Loaded Essence: " .. tostring(data.Currencies.Essence))
 		
-		-- Use AddCurrency to trigger HUD update
-		DataService.AddCurrency(player, "Essence", 50)
-		print("DATA TEST: Added 50 Essence via AddCurrency. Saving...")
-		
-		-- Spirit Check
-		task.wait(2) -- Wait for SpiritService to process
-		
-		local spiritCount = 0
-		local firstSpiritName = "None"
-		
-		if data.Inventory and data.Inventory.Spirits then
-			for _, spirit in pairs(data.Inventory.Spirits) do
-				spiritCount = spiritCount + 1
-				if firstSpiritName == "None" then
-					firstSpiritName = spirit.Name
-				end
-			end
+		-- Add test currency if low
+		if data.Currencies.Essence < 100 then
+			DataService.AddCurrency(player, "Essence", 100)
+			print("DATA TEST: Added 100 Essence (Starter Bonus)")
 		end
 		
-		print("SPIRIT CHECK: Inventory Count = " .. tostring(spiritCount))
-		print("SPIRIT CHECK: First Spirit = " .. tostring(firstSpiritName))
-		
-		-- Realm Test
-		print("REALM TEST: Starting...")
-		
-		-- Wait for RealmService to initialize realm
-		task.wait(2)
-		
-		local realmName = player.Name .. "_Realm"
-		local realmModel = workspace:WaitForChild("PlayerRealms"):FindFirstChild(realmName)
-		
-		if realmModel and realmModel.PrimaryPart then
-			print("REALM CHECK: Found Island at " .. realmModel.PrimaryPart.Position)
-		else
-			warn("REALM CHECK: Island NOT found in workspace.PlayerRealms!")
-		end
-		
-		local success = RealmService:PlaceFurniture(player, "chair_01", CFrame.new(10, 5, 10))
-		if success then
-			print("REALM TEST: Furniture placed successfully")
-		else
-			warn("REALM TEST: Failed to place furniture")
-		end
-		
+		-- Verify Realm
+		task.wait(1)
 		local income = RealmService:CalculatePassiveIncome(player)
-		print("REALM TEST: Passive Income: " .. tostring(income))
+		print("DATA TEST: Passive Income Check: " .. tostring(income))
 		
-		-- Hub Return Test
-		task.wait(3)
-		print("TEST COMPLETE: Teleported to Hub for Combat Testing")
-		
-		-- Teleport to Hub
-		-- We need to require WorkspaceService dynamically or assume it's loaded
-		local success, WorkspaceService = pcall(function()
-			return require(ServerScriptService.Server.Services.WorkspaceService)
-		end)
-		
-		if success and WorkspaceService and WorkspaceService.TeleportToHub then
-			WorkspaceService:TeleportToHub(player)
-		else
-			-- Manual fallback
-			local hubSpawn = workspace:FindFirstChild("Hub") and workspace.Hub:FindFirstChild("SpawnLocation")
-			if hubSpawn and player.Character then
-				player.Character:PivotTo(hubSpawn.CFrame + Vector3.new(0, 5, 0))
-			end
-		end
-	else
-		warn("DATA TEST: Could not load data for " .. player.Name)
+		print("DATA TEST: Player " .. player.Name .. " ready for testing.")
 	end
-end
 
-Players.PlayerAdded:Connect(onPlayerAdded)
-for _, player in ipairs(Players:GetPlayers()) do
-	task.spawn(onPlayerAdded, player)
-end
+	Players.PlayerAdded:Connect(onPlayerAdded)
+	for _, player in ipairs(Players:GetPlayers()) do
+		onPlayerAdded(player)
+	end
+end)

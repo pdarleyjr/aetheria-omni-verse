@@ -5,174 +5,181 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 
-local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Maid = require(Shared.Modules.Maid)
+local Signal = require(Shared.Modules.Signal)
 
 local UIController = {}
+UIController.Maid = Maid.new()
 
-local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+-- Theme Constants
+local THEME = {
+	GLASS_COLOR = Color3.fromRGB(20, 20, 35),
+	GLASS_TRANSPARENCY = 0.25,
+	ACCENT_COLOR = Color3.fromRGB(0, 170, 255),
+	TEXT_COLOR = Color3.fromRGB(255, 255, 255),
+	FONT = Enum.Font.GothamBold,
+	CORNER_RADIUS = UDim.new(0, 12)
+}
 
-local mainHUD = nil
-local currencyLabels = {}
-local spiritLabels = {}
-
-function UIController:Init()
-	print("[UIController] Initializing...")
-	self:CreateHUD()
-end
-
-function UIController:Start()
-	print("[UIController] Starting...")
+function UIController:Initialize(playerData)
+	self.Player = Players.LocalPlayer
+	self.PlayerGui = self.Player:WaitForChild("PlayerGui")
 	
-	local updateHUDEvent = Remotes.GetEvent("UpdateHUD")
-	updateHUDEvent.OnClientEvent:Connect(function(data)
-		self:UpdateHUD(data)
+	-- Create main HUD
+	self:CreateHUD()
+	
+	-- Initial update
+	if playerData and playerData.Currencies then
+		self:UpdateCurrencyDisplay(playerData.Currencies)
+	end
+	
+	-- Listen for currency changes
+	local DataChangedEvent = ReplicatedStorage.Shared.Remotes.Data:WaitForChild("DataChanged")
+	DataChangedEvent.OnClientEvent:Connect(function(path, newValue)
+		if path == "Currencies" then
+			self:UpdateCurrencyDisplay(newValue)
+		end
 	end)
 	
-	-- Request initial update
-	-- (Optional: Server could send it on load, but requesting ensures we are ready)
+	print("UIController: Initialized")
 end
 
 function UIController:CreateHUD()
-	if mainHUD then return end
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.Name = "MainHUD"
+	screenGui.ResetOnSpawn = false
+	screenGui.Parent = self.PlayerGui
+	self.ScreenGui = screenGui
 	
-	mainHUD = Instance.new("ScreenGui")
-	mainHUD.Name = "MainHUD"
-	mainHUD.ResetOnSpawn = false
-	mainHUD.Parent = playerGui
+	-- 1. Currency Panel (Top Left)
+	local currencyFrame = self:CreateGlassPanel(UDim2.new(0, 220, 0, 90), UDim2.new(0, 20, 0, 20))
+	currencyFrame.Name = "CurrencyPanel"
+	currencyFrame.Parent = screenGui
 	
-	-- // CURRENCY FRAME (Glassmorphism) //
-	local currencyFrame = Instance.new("Frame")
-	currencyFrame.Name = "CurrencyFrame"
-	currencyFrame.Size = UDim2.new(0, 200, 0, 100)
-	currencyFrame.Position = UDim2.new(1, -220, 0, 20)
-	currencyFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-	currencyFrame.BackgroundTransparency = 0.3
-	currencyFrame.BorderSizePixel = 0
-	currencyFrame.Parent = mainHUD
+	self.EssenceLabel = self:CreateCurrencyLabel("Essence", "✨", 0, currencyFrame)
+	self.AetherLabel = self:CreateCurrencyLabel("Aether", "💎", 1, currencyFrame)
+	self.CrystalsLabel = self:CreateCurrencyLabel("Crystals", "🔮", 2, currencyFrame)
 	
-	local curCorner = Instance.new("UICorner")
-	curCorner.CornerRadius = UDim.new(0, 12)
-	curCorner.Parent = currencyFrame
+	-- 2. Combat Controls (Bottom Right)
+	local combatFrame = Instance.new("Frame")
+	combatFrame.Name = "CombatControls"
+	combatFrame.Size = UDim2.new(0, 200, 0, 200)
+	combatFrame.Position = UDim2.new(1, -220, 1, -220)
+	combatFrame.BackgroundTransparency = 1
+	combatFrame.Parent = screenGui
 	
-	local curStroke = Instance.new("UIStroke")
-	curStroke.Color = Color3.fromRGB(255, 255, 255)
-	curStroke.Transparency = 0.8
-	curStroke.Thickness = 1
-	curStroke.Parent = currencyFrame
+	-- Attack Button
+	local attackBtn = self:CreateActionButton("⚔️", UDim2.new(0.5, 0, 0.5, 0), Color3.fromRGB(255, 80, 80))
+	attackBtn.Parent = combatFrame
 	
-	local layout = Instance.new("UIListLayout")
-	layout.Parent = currencyFrame
-	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Padding = UDim.new(0, 5)
+	-- Ability 1
+	local ability1Btn = self:CreateActionButton("1", UDim2.new(0, 0, 0.5, 0), THEME.ACCENT_COLOR)
+	ability1Btn.Size = UDim2.new(0, 60, 0, 60)
+	ability1Btn.Parent = combatFrame
 	
-	local padding = Instance.new("UIPadding")
-	padding.Parent = currencyFrame
-	padding.PaddingTop = UDim.new(0, 10)
-	padding.PaddingLeft = UDim.new(0, 10)
-	padding.PaddingRight = UDim.new(0, 10)
-	padding.PaddingBottom = UDim.new(0, 10)
+	-- Ability 2
+	local ability2Btn = self:CreateActionButton("2", UDim2.new(1, 0, 0.5, 0), THEME.ACCENT_COLOR)
+	ability2Btn.Size = UDim2.new(0, 60, 0, 60)
+	ability2Btn.Parent = combatFrame
 	
-	-- Helper to create labels
-	local function createLabel(name, color, order, parent, tableToStore)
-		local label = Instance.new("TextLabel")
-		label.Name = name
-		label.Size = UDim2.new(1, 0, 0, 20)
-		label.BackgroundTransparency = 1
-		label.TextColor3 = color
-		label.TextXAlignment = Enum.TextXAlignment.Left
-		label.Font = Enum.Font.GothamBold
-		label.TextSize = 14
-		label.Text = name .. ": 0"
-		label.LayoutOrder = order
-		label.Parent = parent
-		
-		tableToStore[name] = label
-	end
+	-- Bind Actions
+	attackBtn.Activated:Connect(function()
+		self:OnAttackPressed()
+	end)
 	
-	createLabel("Essence", Color3.fromRGB(100, 255, 100), 1, currencyFrame, currencyLabels) -- Green
-	createLabel("Aether", Color3.fromRGB(100, 200, 255), 2, currencyFrame, currencyLabels)  -- Blue
-	createLabel("Crystals", Color3.fromRGB(255, 100, 255), 3, currencyFrame, currencyLabels) -- Purple
-	
-	-- // SPIRIT PANEL (Glassmorphism) //
-	local spiritPanel = Instance.new("Frame")
-	spiritPanel.Name = "SpiritPanel"
-	spiritPanel.Size = UDim2.new(0, 220, 0, 120)
-	spiritPanel.Position = UDim2.new(0, 20, 1, -140)
-	spiritPanel.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-	spiritPanel.BackgroundTransparency = 0.3
-	spiritPanel.BorderSizePixel = 0
-	spiritPanel.Parent = mainHUD
-	
-	local spCorner = Instance.new("UICorner")
-	spCorner.CornerRadius = UDim.new(0, 12)
-	spCorner.Parent = spiritPanel
-	
-	local spStroke = Instance.new("UIStroke")
-	spStroke.Color = Color3.fromRGB(255, 255, 255)
-	spStroke.Transparency = 0.8
-	spStroke.Thickness = 1
-	spStroke.Parent = spiritPanel
-	
-	local spLayout = Instance.new("UIListLayout")
-	spLayout.Parent = spiritPanel
-	spLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	spLayout.Padding = UDim.new(0, 5)
-	
-	local spPadding = Instance.new("UIPadding")
-	spPadding.Parent = spiritPanel
-	spPadding.PaddingTop = UDim.new(0, 10)
-	spPadding.PaddingLeft = UDim.new(0, 10)
-	spPadding.PaddingRight = UDim.new(0, 10)
-	spPadding.PaddingBottom = UDim.new(0, 10)
-	
-	-- Spirit Labels
-	createLabel("SpiritName", Color3.fromRGB(255, 255, 200), 1, spiritPanel, spiritLabels)
-	createLabel("Level", Color3.fromRGB(255, 255, 255), 2, spiritPanel, spiritLabels)
-	createLabel("Exp", Color3.fromRGB(200, 200, 200), 3, spiritPanel, spiritLabels)
-	
-	spiritLabels["SpiritName"].Text = "No Spirit Equipped"
-	spiritLabels["Level"].Text = "Level: -"
-	spiritLabels["Exp"].Text = "EXP: -"
+	-- Mobile/PC Input binding
+	UserInputService.InputBegan:Connect(function(input, processed)
+		if processed then return end
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.KeyCode == Enum.KeyCode.Space then
+			self:OnAttackPressed()
+		end
+	end)
 end
 
-function UIController:UpdateHUD(data)
-	if not data then return end
+function UIController:CreateGlassPanel(size, position)
+	local frame = Instance.new("Frame")
+	frame.Size = size
+	frame.Position = position
+	frame.BackgroundColor3 = THEME.GLASS_COLOR
+	frame.BackgroundTransparency = THEME.GLASS_TRANSPARENCY
+	frame.BorderSizePixel = 0
 	
-	-- Update Currencies
-	if data.Currencies then
-		if currencyLabels["Essence"] then
-			currencyLabels["Essence"].Text = "Essence: " .. tostring(data.Currencies.Essence or 0)
-		end
-		if currencyLabels["Aether"] then
-			currencyLabels["Aether"].Text = "Aether: " .. tostring(data.Currencies.Aether or 0)
-		end
-		if currencyLabels["Crystals"] then
-			currencyLabels["Crystals"].Text = "Crystals: " .. tostring(data.Currencies.Crystals or 0)
-		end
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = THEME.CORNER_RADIUS
+	corner.Parent = frame
+	
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.new(1, 1, 1)
+	stroke.Transparency = 0.8
+	stroke.Parent = frame
+	
+	return frame
+end
+
+function UIController:CreateCurrencyLabel(name, icon, order, parent)
+	local label = Instance.new("TextLabel")
+	label.Name = name
+	label.Size = UDim2.new(1, -20, 0, 25)
+	label.Position = UDim2.new(0, 10, 0, 10 + (order * 25))
+	label.BackgroundTransparency = 1
+	label.Text = icon .. " " .. name .. ": 0"
+	label.TextColor3 = THEME.TEXT_COLOR
+	label.Font = THEME.FONT
+	label.TextSize = 14
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = parent
+	return label
+end
+
+function UIController:CreateActionButton(text, position, color)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0, 80, 0, 80)
+	btn.Position = position
+	btn.AnchorPoint = Vector2.new(0.5, 0.5)
+	btn.BackgroundColor3 = color
+	btn.Text = text
+	btn.TextSize = 24
+	btn.TextColor3 = Color3.new(1, 1, 1)
+	btn.Font = THEME.FONT
+	
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(1, 0)
+	corner.Parent = btn
+	
+	return btn
+end
+
+function UIController:UpdateCurrencyDisplay(currencies)
+	if not currencies then return end
+	
+	if currencies.Essence then
+		self.EssenceLabel.Text = "✨ Essence: " .. self:FormatNumber(currencies.Essence)
 	end
-	
-	-- Update Spirit Panel
-	if data.Inventory and data.Inventory.Equipped and data.Inventory.Spirits then
-		local equippedId = data.Inventory.Equipped["Main"]
-		if equippedId and data.Inventory.Spirits[equippedId] then
-			local spirit = data.Inventory.Spirits[equippedId]
-			
-			if spiritLabels["SpiritName"] then
-				spiritLabels["SpiritName"].Text = spirit.Name or "Unknown Spirit"
-			end
-			if spiritLabels["Level"] then
-				spiritLabels["Level"].Text = "Level: " .. tostring(spirit.Level or 1)
-			end
-			if spiritLabels["Exp"] then
-				spiritLabels["Exp"].Text = "EXP: " .. tostring(spirit.Exp or 0)
-			end
-		else
-			if spiritLabels["SpiritName"] then spiritLabels["SpiritName"].Text = "No Spirit Equipped" end
-			if spiritLabels["Level"] then spiritLabels["Level"].Text = "Level: -" end
-			if spiritLabels["Exp"] then spiritLabels["Exp"].Text = "EXP: -" end
+	if currencies.Aether then
+		self.AetherLabel.Text = "💎 Aether: " .. self:FormatNumber(currencies.Aether)
+	end
+	if currencies.Crystals then
+		self.CrystalsLabel.Text = "🔮 Crystals: " .. self:FormatNumber(currencies.Crystals)
+	end
+end
+
+function UIController:FormatNumber(n)
+	return tostring(n)
+end
+
+function UIController:OnAttackPressed()
+	-- Visual feedback
+	local RequestAttack = ReplicatedStorage.Shared.Remotes.Combat:FindFirstChild("RequestAttack")
+	if RequestAttack then
+		local targetPos = Vector3.new(0, 0, 0) -- Default forward
+		if self.Player.Character then
+			targetPos = self.Player.Character:GetPivot().Position + self.Player.Character:GetPivot().LookVector * 10
 		end
+		RequestAttack:FireServer(targetPos)
 	end
 end
 
