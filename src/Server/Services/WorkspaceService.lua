@@ -26,7 +26,7 @@ function WorkspaceService:SpawnDummy()
 	local humanoid = Instance.new("Humanoid")
 	humanoid.MaxHealth = 100
 	humanoid.Health = 100
-	humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Always
+	humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOn
 	humanoid.Parent = dummy
 	
 	local rootPart = Instance.new("Part")

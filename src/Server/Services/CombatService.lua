@@ -12,6 +12,7 @@ function CombatService:Init()
 	print("[CombatService] Initializing...")
 	
 	local attackRemote = Remotes.GetEvent("Attack")
+	Remotes.GetEvent("ShowDamage") -- Pre-create to prevent client infinite yield
 	
 	attackRemote.OnServerEvent:Connect(function(player, target)
 		self:HandleAttack(player, target)
