@@ -35,6 +35,9 @@ if not ServicesFolder then
 	error("CRITICAL: Services folder not found in ServerScriptService.Server")
 end
 
+-- Remotes initialization
+local Remotes = require(ReplicatedStorage.Shared.Remotes)
+
 local services = {}
 
 -- Dynamically load services
@@ -55,9 +58,6 @@ for _, module in ipairs(ServicesFolder:GetChildren()) do
 		end
 	end
 end
-
--- Remotes initialization
-local Remotes = require(ReplicatedStorage.Shared.Remotes)
 
 -- Global error handler
 local function handleError(context: string, err: string): ()
