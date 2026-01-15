@@ -68,13 +68,15 @@ local function onPlayerAdded(player)
 		print("REALM TEST: Starting...")
 		
 		-- Wait for RealmService to initialize realm
-		task.wait(1)
+		task.wait(2)
 		
-		local realmModel = RealmService.RealmInstances[player.UserId]
-		if realmModel then
-			print("REALM TEST: Realm Instance found: " .. realmModel.Name)
+		local realmName = player.Name .. "_Realm"
+		local realmModel = workspace:WaitForChild("PlayerRealms"):FindFirstChild(realmName)
+		
+		if realmModel and realmModel.PrimaryPart then
+			print(`REALM CHECK: Found Island at {realmModel.PrimaryPart.Position}`)
 		else
-			warn("REALM TEST: Realm Instance NOT found!")
+			warn("REALM CHECK: Island NOT found in workspace.PlayerRealms!")
 		end
 		
 		local success = RealmService:PlaceFurniture(player, "chair_01", CFrame.new(10, 5, 10))

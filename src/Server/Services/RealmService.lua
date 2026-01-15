@@ -17,6 +17,13 @@ local BUILDABLE_ITEMS = {
 
 function RealmService:Init()
 	print("[RealmService] Initializing...")
+	
+	-- Ensure PlayerRealms folder exists
+	if not workspace:FindFirstChild("PlayerRealms") then
+		local folder = Instance.new("Folder")
+		folder.Name = "PlayerRealms"
+		folder.Parent = workspace
+	end
 end
 
 function RealmService:Start()
@@ -56,6 +63,21 @@ function RealmService:OnPlayerAdded(player: Player)
 	end
 	
 	self:CreateRealmInstance(player)
+	
+	-- Teleport when character spawns
+	player.CharacterAdded:Connect(function(character)
+		-- Wait a brief moment for physics to initialize
+		task.wait(0.5)
+		self:TeleportToRealm(player, player.UserId)
+	end)
+	
+	-- Teleport if character already exists
+	if player.Character then
+		task.spawn(function()
+			task.wait(0.5)
+			self:TeleportToRealm(player, player.UserId)
+		end)
+	end
 end
 
 function RealmService:CreateRealmInstance(player: Player)
@@ -73,21 +95,24 @@ function RealmService:CreateRealmInstance(player: Player)
 	
 	local base = Instance.new("Part")
 	base.Name = "Base"
-	base.Size = Vector3.new(100, 1, 100)
+	base.Size = Vector3.new(100, 10, 100) -- Thickness 10 as requested
+	base.Material = Enum.Material.Grass
+	base.Color = Color3.fromRGB(75, 151, 75) -- Green
 	base.Anchored = true
-	base.Position = Vector3.new(0, 1000 + (player.UserId % 100) * 200, 0)
+	-- Using a safe multiplier for UserId to avoid floating point errors with huge numbers
+	-- Stacking along Z axis
+	base.Position = Vector3.new(0, 500, (player.UserId % 10000) * 200)
 	base.Parent = realmModel
 	realmModel.PrimaryPart = base
 	
 	-- Load items
 	if data.Realm and data.Realm.Items then
 		for _, itemData in ipairs(data.Realm.Items) do
-			print("[RealmService] Loading item: " .. itemData.ItemId)
 			-- Visuals would be created here
 		end
 	end
 	
-	realmModel.Parent = workspace
+	realmModel.Parent = workspace.PlayerRealms
 	self.RealmInstances[player.UserId] = realmModel
 	
 	return realmModel
@@ -101,7 +126,8 @@ function RealmService:TeleportToRealm(visitor: Player, ownerId: number)
 	end
 	
 	if visitor.Character and visitor.Character.PrimaryPart then
-		local targetCFrame = realmModel.PrimaryPart.CFrame + Vector3.new(0, 5, 0)
+		-- Teleport to center + 10 studs up
+		local targetCFrame = realmModel.PrimaryPart.CFrame + Vector3.new(0, 10, 0)
 		visitor.Character:SetPrimaryPartCFrame(targetCFrame)
 		print("[RealmService] Teleported " .. visitor.Name .. " to realm of " .. ownerId)
 	end
