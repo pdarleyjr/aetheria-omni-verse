@@ -25,17 +25,12 @@ local THEME = {
 	CORNER_RADIUS = UDim.new(0, 12)
 }
 
-function UIController:Initialize(playerData)
+function UIController:Init()
 	self.Player = Players.LocalPlayer
 	self.PlayerGui = self.Player:WaitForChild("PlayerGui")
 	
 	-- Create main HUD
 	self:CreateHUD()
-	
-	-- Initial update
-	if playerData and playerData.Currencies then
-		self:UpdateCurrencyDisplay(playerData.Currencies)
-	end
 	
 	-- Listen for currency changes
 	local DataChangedEvent = ReplicatedStorage.Shared.Remotes.Data:WaitForChild("DataChanged")
@@ -46,6 +41,10 @@ function UIController:Initialize(playerData)
 	end)
 	
 	print("UIController: Initialized")
+end
+
+function UIController:Start()
+	print("[UIController] Starting...")
 end
 
 function UIController:CreateHUD()
