@@ -89,6 +89,10 @@ function SpiritService:CheckStarterSpirit(player: Player, data: any)
 			inventory.Equipped["Main"] = "Spirit_1"
 			
 			print(`[SpiritService] Gave Starter Spirit ({starterDef.Name}) to {player.Name}`)
+			
+			if _G.UpdateHUD then
+				_G.UpdateHUD(player)
+			end
 		end
 	end
 end

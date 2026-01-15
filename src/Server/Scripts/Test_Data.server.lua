@@ -106,7 +106,7 @@ local function onPlayerAdded(player)
 		else
 			-- Manual fallback
 			local hubSpawn = workspace:FindFirstChild("Hub") and workspace.Hub:FindFirstChild("SpawnLocation")
-			if hubSpawn then
+			if hubSpawn and player.Character then
 				player.Character:PivotTo(hubSpawn.CFrame + Vector3.new(0, 5, 0))
 			end
 		end

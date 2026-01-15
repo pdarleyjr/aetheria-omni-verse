@@ -94,6 +94,10 @@ function DataService.AddCurrency(player: Player, currency: string, amount: numbe
 	return false
 end
 
+function DataService.AddEssence(player: Player, amount: number)
+	return DataService.AddCurrency(player, "Essence", amount)
+end
+
 -- // INITIALIZATION //
 
 for _, player in ipairs(Players:GetPlayers()) do
@@ -105,5 +109,6 @@ Players.PlayerRemoving:Connect(PlayerRemoving)
 
 -- // GLOBAL ACCESS //
 _G.GetData = DataService.GetData
+_G.UpdateHUD = DataService.UpdateClientHUD
 
 return DataService
