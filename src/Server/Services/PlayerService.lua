@@ -23,6 +23,7 @@ end
 
 -- Services
 local DataService = require(ServerScriptService.Server.Services.DataService)
+local SpiritService = require(ServerScriptService.Server.Services.SpiritService)
 
 -- Types
 type PlayerData = {
@@ -124,6 +125,12 @@ local function onPlayerAdded(player: Player): ()
 	
 	-- Setup leaderstats
 	setupLeaderstats(player, data)
+	
+	-- Award starting spirit if new player
+	if not data.Spirits or next(data.Spirits) == nil then
+		print(`New player detected - awarding starting spirit to {player.Name}`)
+		SpiritService:AwardSpirit(player, "fire_spirit")
+	end
 	
 	-- Handle character spawning
 	local function onCharacterAdded(character: Model)

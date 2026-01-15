@@ -1,6 +1,5 @@
---!strict
---[[
-	Main.server.lua
+--[[This code is for reference purposes only. It is an expansion of the previous snippet to show the update in details. 
+Main.server.lua
 	Server entry point for Aetheria: The Omni-Verse
 	
 	Initializes all services in proper dependency order and starts the game server.
@@ -14,6 +13,7 @@
 
 local ServerScriptService = game:GetService("ServerScriptService")
 local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- Only run on server
 if not RunService:IsServer() then
@@ -31,6 +31,11 @@ local DataService = require(Services.DataService)
 local PlayerService = require(Services.PlayerService)
 local RealmService = require(Services.RealmService)
 local SpiritService = require(Services.SpiritService)
+local WorkspaceService = require(Services.WorkspaceService)
+local CombatService = require(Services.CombatService)
+
+-- Remotes initialization
+local Remotes = require(ReplicatedStorage.Shared.Remotes)
 
 -- Track initialization status
 local initializationSteps = {
@@ -38,6 +43,8 @@ local initializationSteps = {
 	{ Name = "PlayerService", Service = PlayerService, Status = "Pending" },
 	{ Name = "RealmService", Service = RealmService, Status = "Pending" },
 	{ Name = "SpiritService", Service = SpiritService, Status = "Pending" },
+	{ Name = "WorkspaceService", Service = WorkspaceService, Status = "Pending" },
+	{ Name = "CombatService", Service = CombatService, Status = "Pending" },
 }
 
 -- Global error handler
@@ -93,6 +100,11 @@ end
 -- Main execution
 local function main(): ()
 	local startTime = os.clock()
+	
+	-- Step 0: Initialize Remote Events FIRST
+	print("\n--- Initializing Remote Events ---")
+	Remotes.InitializeRemotes()
+	print("✓ Remote Events initialized\n")
 	
 	-- Step 1: Initialize all services
 	local initSuccess = initializeServices()

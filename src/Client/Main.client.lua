@@ -1,4 +1,3 @@
---!strict
 --[[
 	Main.client.lua
 	Client entry point for Aetheria: The Omni-Verse
@@ -39,6 +38,9 @@ local Controllers = script.Parent.Controllers
 
 local UIController = require(Controllers.UIController)
 local CombatController = require(Controllers.CombatController)
+
+-- Shared modules
+local Remotes = require(ReplicatedStorage.Shared.Remotes)
 
 -- Track initialization status
 local initializationSteps = {
@@ -115,31 +117,37 @@ end
 
 -- Create RemoteEvent references (created by server)
 local function setupRemotes(): boolean
-	-- Wait for Remotes folder to be created by server
-	local remotes = ReplicatedStorage:WaitForChild("Remotes", 10)
-	if not remotes then
-		warn("Failed to find Remotes folder in ReplicatedStorage")
+	-- Wait for Remotes to be created by server
+	local success = Remotes.WaitForRemotes(10)
+	if not success then
+		warn("Failed to find Remotes in ReplicatedStorage")
 		return false
 	end
 	
-	-- Create Combat folder if it doesn't exist (server should have done this)
-	local combatFolder = remotes:FindFirstChild("Combat")
-	if not combatFolder then
-		warn("Combat remotes not found - server may not be ready")
-		return false
-	end
-	
-	-- Cache remote references
+	-- Cache remote references for easy access
 	_G.Remotes = {
 		Combat = {
-			RequestAttack = combatFolder:WaitForChild("RequestAttack", 5),
-			HitConfirmed = combatFolder:WaitForChild("HitConfirmed", 5),
-			AbilityCast = combatFolder:WaitForChild("AbilityCast", 5),
-			DamageNumber = combatFolder:WaitForChild("DamageNumber", 5),
+			RequestAttack = Remotes.GetRemote("Combat", "RequestAttack"),
+			HitConfirmed = Remotes.GetRemote("Combat", "HitConfirmed"),
+			AbilityCast = Remotes.GetRemote("Combat", "AbilityCast"),
+			DamageNumber = Remotes.GetRemote("Combat", "DamageNumber"),
 		},
 		Data = {
-			DataChanged = remotes:FindFirstChild("Data") and remotes.Data:FindFirstChild("DataChanged"),
-			ReplicateData = remotes:FindFirstChild("Data") and remotes.Data:FindFirstChild("ReplicateData"),
+			DataChanged = Remotes.GetRemote("Data", "DataChanged"),
+			ReplicateData = Remotes.GetRemote("Data", "ReplicateData"),
+			RequestData = Remotes.GetRemote("Data", "RequestData"),
+		},
+		Realm = {
+			TeleportToRealm = Remotes.GetRemote("Realm", "TeleportToRealm"),
+			PlaceFurniture = Remotes.GetRemote("Realm", "PlaceFurniture"),
+			RemoveFurniture = Remotes.GetRemote("Realm", "RemoveFurniture"),
+			StartParty = Remotes.GetRemote("Realm", "StartParty"),
+		},
+		Spirit = {
+			EquipSpirit = Remotes.GetRemote("Spirit", "EquipSpirit"),
+			UnequipSpirit = Remotes.GetRemote("Spirit", "UnequipSpirit"),
+			BreedSpirits = Remotes.GetRemote("Spirit", "BreedSpirits"),
+			RequestSpiritData = Remotes.GetRemote("Spirit", "RequestSpiritData"),
 		},
 	}
 	
