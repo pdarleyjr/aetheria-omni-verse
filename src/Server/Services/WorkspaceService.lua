@@ -26,8 +26,8 @@ function WorkspaceService:EnsureHubExists()
 	if not spawnLocation then
 		spawnLocation = Instance.new("SpawnLocation")
 		spawnLocation.Name = "SpawnLocation"
-		spawnLocation.Size = Vector3.new(20, 1, 20)
-		spawnLocation.Position = Vector3.new(0, 10, 0)
+		spawnLocation.Size = Vector3.new(200, 5, 200) -- Large platform
+		spawnLocation.Position = Vector3.new(0, 50, 0) -- Height 50
 		spawnLocation.Anchored = true
 		spawnLocation.CanCollide = true
 		spawnLocation.Material = Enum.Material.Neon

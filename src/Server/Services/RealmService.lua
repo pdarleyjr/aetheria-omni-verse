@@ -126,7 +126,8 @@ function RealmService:TeleportToRealm(visitor: Player, ownerId: number)
 	end
 	
 	if visitor.Character and visitor.Character.PrimaryPart then
-		local targetCFrame = realmModel.PrimaryPart.CFrame + Vector3.new(0, 10, 0)
+		-- Teleport to center + 50 studs up (Streaming Safety Buffer)
+		local targetCFrame = realmModel.PrimaryPart.CFrame + Vector3.new(0, 50, 0)
 		
 		-- Streaming Safety: Request area to load before teleporting
 		visitor:RequestStreamAroundAsync(targetCFrame.Position)
@@ -137,7 +138,7 @@ function RealmService:TeleportToRealm(visitor: Player, ownerId: number)
 			rootPart.Anchored = true
 			visitor.Character:PivotTo(targetCFrame)
 			
-			task.delay(1, function()
+			task.delay(2, function() -- Wait 2 seconds as requested
 				if rootPart and rootPart.Parent then
 					rootPart.Anchored = false
 				end
