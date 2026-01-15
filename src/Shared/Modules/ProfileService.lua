@@ -25,26 +25,27 @@ function ProfileService.GetProfileStore(storeName: string, template: any)
 end
 
 function MockStore:LoadProfileAsync(profileKey: string, notReleasedHandler: string | (placeId: number, gameJobId: string) -> string)
+	-- Capture template from store instance
+	local template = self._template
+	
 	-- Simulate loading
 	local profile = {
-		Data = table.clone(self._template),
+		Data = nil,
 		_listeners = {},
 		_active = true
 	}
 	
 	-- Deep copy template to avoid reference issues
 	local function deepCopy(t)
+		if type(t) ~= "table" then return t end
 		local copy = {}
 		for k, v in pairs(t) do
-			if type(v) == "table" then
-				copy[k] = deepCopy(v)
-			else
-				copy[k] = v
-			end
+			copy[k] = deepCopy(v)
 		end
 		return copy
 	end
-	profile.Data = deepCopy(self._template)
+	
+	profile.Data = deepCopy(template)
 
 	function profile:Release()
 		self._active = false
@@ -65,12 +66,24 @@ function MockStore:LoadProfileAsync(profileKey: string, notReleasedHandler: stri
 	end
 
 	function profile:Reconcile()
-		-- Simple reconcile
-		for k, v in pairs(self._template) do
-			if profile.Data[k] == nil then
-				profile.Data[k] = v
+		-- Simple reconcile using captured template
+		if not template then return end
+		
+		local function reconcileTable(target, source)
+			for k, v in pairs(source) do
+				if target[k] == nil then
+					if type(v) == "table" then
+						target[k] = deepCopy(v)
+					else
+						target[k] = v
+					end
+				elseif type(target[k]) == "table" and type(v) == "table" then
+					reconcileTable(target[k], v)
+				end
 			end
 		end
+		
+		reconcileTable(profile.Data, template)
 	end
 	
 	function profile:IsActive()

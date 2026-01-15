@@ -15,7 +15,6 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local StarterPlayer = game:GetService("StarterPlayer")
 local RunService = game:GetService("RunService")
 
 -- Only run on client
@@ -34,188 +33,77 @@ if not LocalPlayer then
 end
 
 -- Controller requires
-local Controllers = script.Parent.Controllers
+local ControllersFolder = script.Parent.Controllers
+local controllers = {}
 
-local UIController = require(Controllers.UIController)
-local CombatController = require(Controllers.CombatController)
-
--- Shared modules
-local Remotes = require(ReplicatedStorage.Shared.Remotes)
-
--- Track initialization status
-local initializationSteps = {
-	{ Name = "UIController", Controller = UIController, Status = "Pending" },
-	{ Name = "CombatController", Controller = CombatController, Status = "Pending" },
-}
-
--- Global error handler
-local function handleError(context: string, err: string): ()
-	warn(`[ERROR] {context}: {err}`)
-	warn(debug.traceback())
-end
-
--- Wait for character to load
-local function waitForCharacter(): Model?
-	local character = LocalPlayer.Character
-	if not character then
-		character = LocalPlayer.CharacterAdded:Wait()
+-- Dynamically load controllers
+for _, module in ipairs(ControllersFolder:GetChildren()) do
+	if module:IsA("ModuleScript") then
+		local success, result = pcall(function()
+			return require(module)
+		end)
+		
+		if success then
+			table.insert(controllers, { Name = module.Name, Controller = result })
+			print(`[Loader] Loaded {module.Name}`)
+		else
+			warn(`[Loader] Failed to load {module.Name}: {result}`)
+		end
 	end
-	
-	-- Wait for humanoid
-	local humanoid = character:WaitForChild("Humanoid", 10)
-	if not humanoid then
-		warn("Failed to find Humanoid in character")
-		return nil
-	end
-	
-	return character
 end
 
 -- Initialize controllers
-local function initializeControllers(): boolean
+local function initializeControllers()
 	print("\n--- Initializing Controllers ---")
-	
-	for _, step in initializationSteps do
-		local success, err = pcall(function()
-			step.Controller:Init()
-			step.Status = "Initialized"
-			print(`✓ {step.Name} initialized`)
-		end)
-		
-		if not success then
-			step.Status = "Failed"
-			handleError(`Initialization of {step.Name}`, err)
-			return false
+	for _, controllerData in ipairs(controllers) do
+		if type(controllerData.Controller.Init) == "function" then
+			task.spawn(function()
+				local success, err = pcall(function()
+					controllerData.Controller:Init()
+				end)
+				if success then
+					print(`✓ {controllerData.Name} initialized`)
+				else
+					warn(`[ERROR] {controllerData.Name} Init failed: {err}`)
+				end
+			end)
 		end
 	end
-	
-	print("✓ All controllers initialized successfully\n")
-	return true
 end
 
 -- Start controllers
-local function startControllers(): boolean
-	print("--- Starting Controllers ---")
-	
-	for _, step in initializationSteps do
-		local success, err = pcall(function()
-			step.Controller:Start()
-			step.Status = "Running"
-			print(`✓ {step.Name} started`)
-		end)
-		
-		if not success then
-			step.Status = "Failed"
-			handleError(`Starting {step.Name}`, err)
-			return false
+local function startControllers()
+	print("\n--- Starting Controllers ---")
+	for _, controllerData in ipairs(controllers) do
+		if type(controllerData.Controller.Start) == "function" then
+			task.spawn(function()
+				local success, err = pcall(function()
+					controllerData.Controller:Start()
+				end)
+				if success then
+					print(`✓ {controllerData.Name} started`)
+				else
+					warn(`[ERROR] {controllerData.Name} Start failed: {err}`)
+				end
+			end)
 		end
 	end
-	
-	print("✓ All controllers started successfully\n")
-	return true
-end
-
--- Create RemoteEvent references (created by server)
-local function setupRemotes(): boolean
-	-- Wait for Remotes to be created by server
-	local success = Remotes.WaitForRemotes(10)
-	if not success then
-		warn("Failed to find Remotes in ReplicatedStorage")
-		return false
-	end
-	
-	-- Cache remote references for easy access
-	_G.Remotes = {
-		Combat = {
-			RequestAttack = Remotes.GetRemote("Combat", "RequestAttack"),
-			HitConfirmed = Remotes.GetRemote("Combat", "HitConfirmed"),
-			AbilityCast = Remotes.GetRemote("Combat", "AbilityCast"),
-			DamageNumber = Remotes.GetRemote("Combat", "DamageNumber"),
-		},
-		Data = {
-			DataChanged = Remotes.GetRemote("Data", "DataChanged"),
-			ReplicateData = Remotes.GetRemote("Data", "ReplicateData"),
-			RequestData = Remotes.GetRemote("Data", "RequestData"),
-		},
-		Realm = {
-			TeleportToRealm = Remotes.GetRemote("Realm", "TeleportToRealm"),
-			PlaceFurniture = Remotes.GetRemote("Realm", "PlaceFurniture"),
-			RemoveFurniture = Remotes.GetRemote("Realm", "RemoveFurniture"),
-			StartParty = Remotes.GetRemote("Realm", "StartParty"),
-		},
-		Spirit = {
-			EquipSpirit = Remotes.GetRemote("Spirit", "EquipSpirit"),
-			UnequipSpirit = Remotes.GetRemote("Spirit", "UnequipSpirit"),
-			BreedSpirits = Remotes.GetRemote("Spirit", "BreedSpirits"),
-			RequestSpiritData = Remotes.GetRemote("Spirit", "RequestSpiritData"),
-		},
-	}
-	
-	print("✓ Remote references cached")
-	return true
 end
 
 -- Main execution
-local function main(): ()
+local function main()
 	local startTime = os.clock()
 	
-	print(`Client initializing for player: {LocalPlayer.Name}`)
+	initializeControllers()
 	
-	-- Step 1: Wait for character
-	print("\n--- Waiting for Character ---")
-	local character = waitForCharacter()
-	if not character then
-		error("Failed to load character - cannot start client")
-		return
-	end
-	print(`✓ Character loaded: {character.Name}`)
+	task.wait(0.1)
 	
-	-- Step 2: Setup remote references
-	print("\n--- Setting up Remotes ---")
-	local remotesReady = setupRemotes()
-	if not remotesReady then
-		warn("Remotes not fully ready - some features may not work")
-	end
+	startControllers()
 	
-	-- Step 3: Initialize all controllers
-	local initSuccess = initializeControllers()
-	if not initSuccess then
-		error("Failed to initialize controllers - client cannot start")
-		return
-	end
-	
-	-- Step 4: Start all controllers
-	local startSuccess = startControllers()
-	if not startSuccess then
-		error("Failed to start controllers - client cannot start")
-		return
-	end
-	
-	-- Calculate startup time
 	local elapsedTime = os.clock() - startTime
-	
 	print("==============================================")
 	print(`  Client Ready! (Startup time: {string.format("%.2f", elapsedTime)}s)`)
 	print("==============================================\n")
-	
-	-- Handle character respawn
-	LocalPlayer.CharacterAdded:Connect(function(newCharacter)
-		print(`Character respawned: {newCharacter.Name}`)
-		-- Notify controllers of respawn
-		for _, step in initializationSteps do
-			if step.Controller.OnCharacterRespawn then
-				pcall(function()
-					step.Controller:OnCharacterRespawn(newCharacter)
-				end)
-			end
-		end
-	end)
 end
 
--- Protected call to main
-local success, err = pcall(main)
-
-if not success then
-	handleError("Client Startup", err)
-	error("FATAL: Client failed to start")
-end
+main()

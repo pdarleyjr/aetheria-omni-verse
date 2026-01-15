@@ -32,6 +32,24 @@ local function onPlayerAdded(player)
 		print("DATA TEST: Loaded Essence: " .. data.Currencies.Essence)
 		data.Currencies.Essence += 50
 		print("DATA TEST: Added 50 Essence. Saving...")
+		
+		-- Spirit Check
+		task.wait(2) -- Wait for SpiritService to process
+		
+		local spiritCount = 0
+		local firstSpiritName = "None"
+		
+		if data.Inventory and data.Inventory.Spirits then
+			for _, spirit in pairs(data.Inventory.Spirits) do
+				spiritCount += 1
+				if firstSpiritName == "None" then
+					firstSpiritName = spirit.Name
+				end
+			end
+		end
+		
+		print(`SPIRIT CHECK: Inventory Count = {spiritCount}`)
+		print(`SPIRIT CHECK: First Spirit = {firstSpiritName}`)
 	else
 		warn("DATA TEST: Could not load data for " .. player.Name)
 	end

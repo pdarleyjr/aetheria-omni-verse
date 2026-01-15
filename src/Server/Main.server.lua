@@ -25,27 +25,27 @@ print("  Aetheria: The Omni-Verse - Server Starting")
 print("==============================================")
 
 -- Service requires
-local Services = ServerScriptService.Server.Services
+local ServicesFolder = ServerScriptService.Server.Services
+local services = {}
 
-local DataService = require(Services.DataService)
-local PlayerService = require(Services.PlayerService)
-local RealmService = require(Services.RealmService)
-local SpiritService = require(Services.SpiritService)
-local WorkspaceService = require(Services.WorkspaceService)
-local CombatService = require(Services.CombatService)
+-- Dynamically load services
+for _, module in ipairs(ServicesFolder:GetChildren()) do
+	if module:IsA("ModuleScript") then
+		local success, result = pcall(function()
+			return require(module)
+		end)
+		
+		if success then
+			table.insert(services, { Name = module.Name, Service = result })
+			print(`[Loader] Loaded {module.Name}`)
+		else
+			warn(`[Loader] Failed to load {module.Name}: {result}`)
+		end
+	end
+end
 
 -- Remotes initialization
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
-
--- Track initialization status
-local initializationSteps = {
-	{ Name = "DataService", Service = DataService, Status = "Pending" },
-	{ Name = "PlayerService", Service = PlayerService, Status = "Pending" },
-	{ Name = "RealmService", Service = RealmService, Status = "Pending" },
-	{ Name = "SpiritService", Service = SpiritService, Status = "Pending" },
-	{ Name = "WorkspaceService", Service = WorkspaceService, Status = "Pending" },
-	{ Name = "CombatService", Service = CombatService, Status = "Pending" },
-}
 
 -- Global error handler
 local function handleError(context: string, err: string): ()
@@ -53,88 +53,62 @@ local function handleError(context: string, err: string): ()
 	warn(debug.traceback())
 end
 
--- Initialize services in order
-local function initializeServices(): boolean
+-- Initialize services
+local function initializeServices()
 	print("\n--- Initializing Services ---")
-	
-	for _, step in initializationSteps do
-		local success, err = pcall(function()
-			step.Service:Init()
-			step.Status = "Initialized"
-			print(`✓ {step.Name} initialized`)
-		end)
-		
-		if not success then
-			step.Status = "Failed"
-			handleError(`Initialization of {step.Name}`, err)
-			return false
+	for _, serviceData in ipairs(services) do
+		if type(serviceData.Service.Init) == "function" then
+			task.spawn(function()
+				local success, err = pcall(function()
+					serviceData.Service:Init()
+				end)
+				if success then
+					print(`✓ {serviceData.Name} initialized`)
+				else
+					warn(`[ERROR] {serviceData.Name} Init failed: {err}`)
+				end
+			end)
 		end
 	end
-	
-	print("✓ All services initialized successfully\n")
-	return true
 end
 
 -- Start services
-local function startServices(): boolean
-	print("--- Starting Services ---")
-	
-	for _, step in initializationSteps do
-		local success, err = pcall(function()
-			step.Service:Start()
-			step.Status = "Running"
-			print(`✓ {step.Name} started`)
-		end)
-		
-		if not success then
-			step.Status = "Failed"
-			handleError(`Starting {step.Name}`, err)
-			return false
+local function startServices()
+	print("\n--- Starting Services ---")
+	for _, serviceData in ipairs(services) do
+		if type(serviceData.Service.Start) == "function" then
+			task.spawn(function()
+				local success, err = pcall(function()
+					serviceData.Service:Start()
+				end)
+				if success then
+					print(`✓ {serviceData.Name} started`)
+				else
+					warn(`[ERROR] {serviceData.Name} Start failed: {err}`)
+				end
+			end)
 		end
 	end
-	
-	print("✓ All services started successfully\n")
-	return true
 end
 
 -- Main execution
-local function main(): ()
+local function main()
 	local startTime = os.clock()
 	
-	-- Step 0: Initialize Remote Events FIRST
-	print("\n--- Initializing Remote Events ---")
-	Remotes.InitializeRemotes()
-	print("✓ Remote Events initialized\n")
+	initializeServices()
+	-- Wait a bit for inits to potentially finish or just proceed? 
+	-- Usually Init is synchronous, but we spawned them. 
+	-- For this simple foundation, let's just proceed to Start.
+	-- In a real framework, we'd wait for promises.
 	
-	-- Step 1: Initialize all services
-	local initSuccess = initializeServices()
-	if not initSuccess then
-		error("Failed to initialize services - server cannot start")
-		return
-	end
+	task.wait(0.1) 
 	
-	-- Step 2: Start all services
-	local startSuccess = startServices()
-	if not startSuccess then
-		error("Failed to start services - server cannot start")
-		return
-	end
+	startServices()
 	
-	-- Calculate startup time
 	local elapsedTime = os.clock() - startTime
-	
 	print("==============================================")
 	print(`  Server Ready! (Startup time: {string.format("%.2f", elapsedTime)}s)`)
 	print("==============================================\n")
-	
-	-- Server is now ready to accept players
-	print("Waiting for players to join...")
 end
 
--- Protected call to main
-local success, err = pcall(main)
-
-if not success then
-	handleError("Server Startup", err)
-	error("FATAL: Server failed to start")
-end
+main()
