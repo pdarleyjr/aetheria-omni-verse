@@ -28,12 +28,19 @@ function SpiritService:Init()
 	-- Listen for players
 	Players.PlayerAdded:Connect(function(player)
 		self:OnPlayerAdded(player)
+		player.CharacterAdded:Connect(function(char)
+			task.wait(0.5)
+			self:RefreshSpiritVisual(player)
+		end)
 	end)
 	
 	-- Handle existing players
 	for _, player in ipairs(Players:GetPlayers()) do
 		task.spawn(function()
 			self:OnPlayerAdded(player)
+			if player.Character then
+				self:RefreshSpiritVisual(player)
+			end
 		end)
 	end
 end
@@ -73,7 +80,10 @@ function SpiritService:CheckStarterSpirit(player: Player, data: any)
 	
 	if not hasSpirits then
 		local starterId = Constants.STARTING_SPIRIT
-		self:AddSpirit(player, starterId)
+		local newSpirit = self:AddSpirit(player, starterId)
+		if newSpirit then
+			self:EquipSpirit(player, newSpirit.UniqueId)
+		end
 	end
 end
 
@@ -138,9 +148,67 @@ function SpiritService:EquipSpirit(player: Player, spiritUniqueId: string)
 end
 
 function SpiritService:UpdateCharacterSpirit(player: Player, spirit: any)
-	-- TODO: Spawn spirit model and attach to player
-	-- For now, just print
+	local character = player.Character
+	if not character or not character.PrimaryPart then return end
+	
+	-- Remove existing spirit
+	local existing = character:FindFirstChild("ActiveSpirit")
+	if existing then existing:Destroy() end
+	
+	if not spirit then return end
+	
+	-- Create visual
+	local spiritDef = Constants.SPIRITS[spirit.Id]
+	if not spiritDef then return end
+	
+	local part = Instance.new("Part")
+	part.Name = "ActiveSpirit"
+	part.Size = Vector3.new(1.5, 1.5, 1.5)
+	part.Shape = Enum.PartType.Ball
+	part.Material = Enum.Material.Neon
+	part.CanCollide = false
+	part.Massless = true
+	
+	local color = Constants.SPIRIT_COLORS[spiritDef.Type] or Color3.new(1, 1, 1)
+	part.Color = color
+	
+	-- Add particles or light
+	local light = Instance.new("PointLight")
+	light.Color = color
+	light.Range = 8
+	light.Brightness = 1.5
+	light.Parent = part
+	
+	-- Position relative to head/shoulder
+	local head = character:FindFirstChild("Head")
+	if head then
+		part.CFrame = head.CFrame * CFrame.new(2, 1, 0)
+	else
+		part.CFrame = character.PrimaryPart.CFrame * CFrame.new(2, 2, 0)
+	end
+	
+	part.Parent = character
+	
+	-- Weld to character so it moves with them
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = head or character.PrimaryPart
+	weld.Part1 = part
+	weld.Parent = part
+	
 	print(`[SpiritService] Spawning spirit visual for {player.Name}: {spirit.Name}`)
+end
+
+function SpiritService:RefreshSpiritVisual(player: Player)
+	local data = _G.GetData(player)
+	if not data or not data.Inventory then return end
+	
+	local equippedId = data.Inventory.EquippedSpirit
+	if not equippedId then return end
+	
+	local spirit = data.Inventory.Spirits[equippedId]
+	if spirit then
+		self:UpdateCharacterSpirit(player, spirit)
+	end
 end
 
 function SpiritService:Start()

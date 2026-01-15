@@ -12,7 +12,7 @@ local lastAttackTime = {}
 function CombatService:Init()
 	print("[CombatService] Initializing...")
 	
-	local attackRemote = Remotes.GetEvent("Attack")
+	local attackRemote = Remotes.GetEvent("RequestAttack")
 	Remotes.GetEvent("ShowDamage") -- Pre-create to prevent client infinite yield
 	
 	attackRemote.OnServerEvent:Connect(function(player, target)

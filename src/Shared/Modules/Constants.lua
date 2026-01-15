@@ -61,6 +61,14 @@ Constants.SPIRITS = {
 	}
 }
 
+Constants.SPIRIT_COLORS = {
+	Fire = Color3.fromRGB(255, 80, 80),
+	Water = Color3.fromRGB(80, 80, 255),
+	Earth = Color3.fromRGB(160, 100, 60),
+	Air = Color3.fromRGB(200, 255, 255),
+	Light = Color3.fromRGB(255, 255, 150),
+}
+
 Constants.RARITY = {
 	Common = 60,
 	Uncommon = 25,
