@@ -41,4 +41,10 @@ Constants.REALM_GRID_WIDTH = 100
 
 Constants.STARTING_SPIRIT = "Ignis"
 
+Constants.COMBAT = {
+	MAX_DISTANCE = 10,
+	COOLDOWN = 0.5,
+	DAMAGE = 10,
+}
+
 return Constants

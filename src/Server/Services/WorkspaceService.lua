@@ -11,6 +11,37 @@ end
 
 function WorkspaceService:Start()
 	print("[WorkspaceService] Starting...")
+	self:SpawnDummy()
+end
+
+function WorkspaceService:SpawnDummy()
+	local hub = Workspace:FindFirstChild("Hub")
+	if not hub then return end
+
+	if hub:FindFirstChild("TrainingDummy") then return end
+
+	local dummy = Instance.new("Model")
+	dummy.Name = "TrainingDummy"
+	
+	local humanoid = Instance.new("Humanoid")
+	humanoid.MaxHealth = 100
+	humanoid.Health = 100
+	humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Always
+	humanoid.Parent = dummy
+	
+	local rootPart = Instance.new("Part")
+	rootPart.Name = "HumanoidRootPart"
+	rootPart.Size = Vector3.new(4, 5, 1)
+	rootPart.Position = Vector3.new(10, 55, 0) -- Near spawn
+	rootPart.Anchored = true
+	rootPart.CanCollide = true
+	rootPart.Color = Color3.fromRGB(200, 50, 50)
+	rootPart.Parent = dummy
+	
+	dummy.PrimaryPart = rootPart
+	dummy.Parent = hub
+	
+	print("[WorkspaceService] Spawning Training Dummy")
 end
 
 function WorkspaceService:EnsureHubExists()
