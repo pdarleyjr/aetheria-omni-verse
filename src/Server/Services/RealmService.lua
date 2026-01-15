@@ -126,9 +126,24 @@ function RealmService:TeleportToRealm(visitor: Player, ownerId: number)
 	end
 	
 	if visitor.Character and visitor.Character.PrimaryPart then
-		-- Teleport to center + 10 studs up
 		local targetCFrame = realmModel.PrimaryPart.CFrame + Vector3.new(0, 10, 0)
-		visitor.Character:SetPrimaryPartCFrame(targetCFrame)
+		
+		-- Streaming Safety: Request area to load before teleporting
+		visitor:RequestStreamAroundAsync(targetCFrame.Position)
+		
+		-- Anchor character briefly to prevent falling through floor
+		local rootPart = visitor.Character.PrimaryPart
+		if rootPart then
+			rootPart.Anchored = true
+			visitor.Character:PivotTo(targetCFrame)
+			
+			task.delay(1, function()
+				if rootPart and rootPart.Parent then
+					rootPart.Anchored = false
+				end
+			end)
+		end
+		
 		print("[RealmService] Teleported " .. visitor.Name .. " to realm of " .. ownerId)
 	end
 end
