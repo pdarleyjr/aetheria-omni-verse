@@ -112,6 +112,16 @@ Constants.BIOMES = {
 	}
 }
 
+Constants.ZONES = {
+	["Glitch Wastes"] = {
+		Center = Vector3.new(1000, 100, 1000),
+		Size = Vector3.new(400, 20, 400),
+		BaseColor = Color3.fromRGB(20, 0, 20),
+		PlatformColor = Color3.fromRGB(40, 0, 40),
+		AtmosphereColor = Color3.fromRGB(100, 0, 100)
+	}
+}
+
 Constants.COMBAT = {
 	MAX_DISTANCE = 10,
 	COOLDOWN = 0.5,

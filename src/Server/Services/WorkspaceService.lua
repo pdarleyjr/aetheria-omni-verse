@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
 local Constants = require(ReplicatedStorage.Shared.Modules.Constants)
+local Random = Random.new()
 
 local WorkspaceService = {}
 
@@ -18,6 +19,7 @@ function WorkspaceService:Start()
 	self:CreateTestDummy()
 	self:SetupEnvironment()
 	self:SpawnSummoningAltar()
+	self:SpawnGlitchBiome()
 end
 
 function WorkspaceService:CreateSpawnHub()
@@ -105,6 +107,104 @@ function WorkspaceService:CreatePortal(biomeData)
 	desc.TextScaled = true
 	desc.Font = Enum.Font.Gotham
 	desc.Parent = sg
+
+	-- Teleport Logic
+	portal.Touched:Connect(function(hit)
+		local character = hit.Parent
+		local rootPart = character:FindFirstChild("HumanoidRootPart")
+		local humanoid = character:FindFirstChild("Humanoid")
+		
+		if rootPart and humanoid then
+			local player = Players:GetPlayerFromCharacter(character)
+			if player then
+				local zone = Constants.ZONES[biomeData.Name]
+				if zone then
+					if not character:GetAttribute("Teleporting") then
+						character:SetAttribute("Teleporting", true)
+						-- Teleport slightly above center
+						rootPart.CFrame = CFrame.new(zone.Center + Vector3.new(0, 15, 0))
+						task.wait(2)
+						character:SetAttribute("Teleporting", nil)
+					end
+				end
+			end
+		end
+	end)
+end
+
+function WorkspaceService:SpawnGlitchBiome()
+	local zoneData = Constants.ZONES["Glitch Wastes"]
+	if not zoneData then return end
+
+	local folder = Instance.new("Folder")
+	folder.Name = "GlitchWastes"
+	folder.Parent = Workspace
+
+	-- Base Platform
+	local base = Instance.new("Part")
+	base.Name = "BasePlatform"
+	base.Size = zoneData.Size
+	base.Position = zoneData.Center
+	base.Anchored = true
+	base.Material = Enum.Material.Foil
+	base.Color = zoneData.PlatformColor
+	base.Parent = folder
+
+	-- Generate Glitch Structures
+	for i = 1, 50 do
+		local part = Instance.new("Part")
+		part.Name = "GlitchPart"
+		part.Size = Vector3.new(Random:NextNumber(5, 20), Random:NextNumber(5, 50), Random:NextNumber(5, 20))
+
+		local offset = Vector3.new(
+			Random:NextNumber(-zoneData.Size.X/2, zoneData.Size.X/2),
+			Random:NextNumber(0, 50),
+			Random:NextNumber(-zoneData.Size.Z/2, zoneData.Size.Z/2)
+		)
+		part.Position = zoneData.Center + Vector3.new(0, zoneData.Size.Y/2, 0) + offset
+		part.Anchored = true
+		part.Material = Enum.Material.Neon
+		-- Purple/Pink/Magenta hues
+		part.Color = Color3.fromHSV(Random:NextNumber(0.75, 0.9), 1, 1)
+		part.Orientation = Vector3.new(Random:NextNumber(0, 360), Random:NextNumber(0, 360), Random:NextNumber(0, 360))
+		part.Parent = folder
+	end
+	
+	-- Return Portal
+	local returnPortal = Instance.new("Part")
+	returnPortal.Name = "ReturnPortal"
+	returnPortal.Size = Vector3.new(8, 12, 2)
+	returnPortal.Position = zoneData.Center + Vector3.new(0, 10, 0)
+	returnPortal.Anchored = true
+	returnPortal.Color = Color3.fromRGB(255, 255, 255)
+	returnPortal.Material = Enum.Material.Neon
+	returnPortal.Parent = folder
+	
+	local sg = Instance.new("SurfaceGui")
+	sg.Face = Enum.NormalId.Front
+	sg.Parent = returnPortal
+	
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 1, 0)
+	label.BackgroundTransparency = 1
+	label.Text = "RETURN TO HUB"
+	label.TextColor3 = Color3.new(0, 0, 0)
+	label.TextScaled = true
+	label.Font = Enum.Font.GothamBlack
+	label.Parent = sg
+	
+	returnPortal.Touched:Connect(function(hit)
+		local character = hit.Parent
+		local rootPart = character:FindFirstChild("HumanoidRootPart")
+		if rootPart and character:FindFirstChild("Humanoid") then
+			if not character:GetAttribute("Teleporting") then
+				character:SetAttribute("Teleporting", true)
+				rootPart.CFrame = CFrame.new(0, 5, 0) -- Back to spawn
+				task.wait(2)
+				character:SetAttribute("Teleporting", nil)
+			end
+		end
+	end)
 end
 
 function WorkspaceService:CreateTestDummy()
