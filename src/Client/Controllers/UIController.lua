@@ -1,6 +1,8 @@
 --[[
+
 	UIController.lua
 	Manages the main HUD and UI updates.
+
 ]]
 
 local Players = game:GetService("Players")
@@ -12,6 +14,12 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Maid = require(Shared.Modules.Maid)
 local Signal = require(Shared.Modules.Signal)
 local Remotes = require(Shared.Remotes)
+
+-- Lazy load InventoryController to avoid circular dependency issues during Init
+local InventoryController
+task.spawn(function()
+	InventoryController = require(script.Parent.InventoryController)
+end)
 
 local UIController = {}
 UIController.Maid = Maid.new()
@@ -64,6 +72,9 @@ function UIController:CreateHUD()
 	self.AetherLabel = self:CreateCurrencyLabel("Aether", "💎", 1, currencyFrame)
 	self.CrystalsLabel = self:CreateCurrencyLabel("Crystals", "🔮", 2, currencyFrame)
 	
+	-- 1.5 Menu Buttons (Left Side)
+	self:CreateMenuButtons(screenGui)
+
 	-- 2. Combat Controls (Bottom Right)
 	local combatFrame = Instance.new("Frame")
 	combatFrame.Name = "CombatControls"
@@ -151,6 +162,32 @@ function UIController:CreateActionButton(text, position, color)
 	corner.Parent = btn
 	
 	return btn
+end
+
+function UIController:CreateMenuButtons(parent)
+	local frame = Instance.new("Frame")
+	frame.Name = "MenuButtons"
+	frame.Size = UDim2.new(0, 60, 0, 200)
+	frame.Position = UDim2.new(0, 20, 0, 120)
+	frame.BackgroundTransparency = 1
+	frame.Parent = parent
+	
+	local layout = Instance.new("UIListLayout")
+	layout.Padding = UDim.new(0, 10)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Parent = frame
+	
+	-- Bag Button
+	local bagBtn = self:CreateActionButton("🎒", UDim2.new(0, 0, 0, 0), Color3.fromRGB(100, 100, 150))
+	bagBtn.Size = UDim2.new(0, 50, 0, 50)
+	bagBtn.LayoutOrder = 1
+	bagBtn.Parent = frame
+	
+	bagBtn.Activated:Connect(function()
+		if InventoryController then
+			InventoryController:Toggle()
+		end
+	end)
 end
 
 function UIController:UpdateCurrencyDisplay(currencies)

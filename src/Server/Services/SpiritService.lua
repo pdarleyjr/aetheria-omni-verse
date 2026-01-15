@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local Constants = require(ReplicatedStorage.Shared.Modules.Constants)
+local Remotes = require(ReplicatedStorage.Shared.Remotes)
 -- We need to wait for DataService to be loaded. 
 -- Since we are in the same folder and loaded by Main, we can require it directly if we knew the order,
 -- or use the global _G.GetData which DataService sets up.
@@ -17,6 +18,13 @@ local SpiritService = {}
 
 function SpiritService:Init()
 	print("[SpiritService] Init called")
+	
+	-- Listen for EquipSpirit
+	local EquipSpiritEvent = Remotes.GetEvent("EquipSpirit")
+	EquipSpiritEvent.OnServerEvent:Connect(function(player, spiritUniqueId)
+		self:EquipSpirit(player, spiritUniqueId)
+	end)
+
 	-- Listen for players
 	Players.PlayerAdded:Connect(function(player)
 		self:OnPlayerAdded(player)
@@ -103,6 +111,36 @@ function SpiritService:AddSpirit(player: Player, spiritId: string)
 	end
 	
 	return newSpirit
+end
+
+function SpiritService:EquipSpirit(player: Player, spiritUniqueId: string)
+	local data = _G.GetData(player)
+	if not data then return end
+
+	local inventory = data.Inventory
+	if not inventory.Spirits then return end
+
+	local spirit = inventory.Spirits[spiritUniqueId]
+	if not spirit then
+		warn(`[SpiritService] Player {player.Name} tried to equip invalid spirit {spiritUniqueId}`)
+		return
+	end
+
+	inventory.EquippedSpirit = spiritUniqueId
+	print(`[SpiritService] {player.Name} equipped {spirit.Name}`)
+
+	if _G.UpdateHUD then
+		_G.UpdateHUD(player)
+	end
+	
+	-- Update character visuals
+	self:UpdateCharacterSpirit(player, spirit)
+end
+
+function SpiritService:UpdateCharacterSpirit(player: Player, spirit: any)
+	-- TODO: Spawn spirit model and attach to player
+	-- For now, just print
+	print(`[SpiritService] Spawning spirit visual for {player.Name}: {spirit.Name}`)
 end
 
 function SpiritService:Start()
