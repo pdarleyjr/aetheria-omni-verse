@@ -35,8 +35,8 @@ Constants.RARITY = {
 	Legendary = 1
 }
 
-Constants.REALM_ISLAND_SIZE = 200
-Constants.REALM_GRID_SPACING = 1000
+Constants.REALM_ISLAND_SIZE = Vector3.new(200, 20, 200)
+Constants.REALM_GRID_SPACING = 300 -- As requested: x = col * 300
 Constants.REALM_GRID_WIDTH = 100
 
 Constants.STARTING_SPIRIT = "Ignis"

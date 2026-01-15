@@ -97,7 +97,7 @@ function RealmService:CreateRealmInstance(player: Player)
 	
 	local base = Instance.new("Part")
 	base.Name = "Base"
-	base.Size = Vector3.new(Constants.REALM_ISLAND_SIZE, 10, Constants.REALM_ISLAND_SIZE) -- Thickness 10 as requested
+	base.Size = Constants.REALM_ISLAND_SIZE
 	base.Material = Enum.Material.Grass
 	base.Color = Color3.fromRGB(75, 151, 75) -- Green
 	base.Anchored = true
@@ -106,8 +106,9 @@ function RealmService:CreateRealmInstance(player: Player)
 	local gridWidth = Constants.REALM_GRID_WIDTH
 	local spacing = Constants.REALM_GRID_SPACING
 	
-	local gridX = player.UserId % gridWidth
-	local gridZ = math.floor(player.UserId / gridWidth)
+	local idx = player.UserId % 10000
+	local gridX = idx % gridWidth
+	local gridZ = math.floor(idx / gridWidth)
 	
 	base.Position = Vector3.new(gridX * spacing, 500, gridZ * spacing)
 	base.Parent = realmModel
@@ -149,7 +150,7 @@ function RealmService:TeleportToRealm(visitor: Player, ownerId: number)
 			
 			visitor.Character:PivotTo(targetCFrame)
 			
-			task.delay(2, function() -- Wait 2 seconds as requested
+			task.delay(3, function() -- Wait 3 seconds as requested
 				if rootPart and rootPart.Parent then
 					rootPart.Anchored = false
 				end
