@@ -24,6 +24,40 @@ Constants.SPIRITS = {
 		Type = "Air",
 		BaseStats = { Atk = 7, Def = 4, Spd = 10 },
 		Rarity = "Common"
+	},
+	-- Uncommon
+	Volt = {
+		Name = "Volt",
+		Type = "Air",
+		BaseStats = { Atk = 12, Def = 6, Spd = 12 },
+		Rarity = "Uncommon"
+	},
+	Frost = {
+		Name = "Frost",
+		Type = "Water",
+		BaseStats = { Atk = 9, Def = 12, Spd = 8 },
+		Rarity = "Uncommon"
+	},
+	-- Rare
+	Inferno = {
+		Name = "Inferno",
+		Type = "Fire",
+		BaseStats = { Atk = 18, Def = 8, Spd = 10 },
+		Rarity = "Rare"
+	},
+	-- Epic
+	Gaia = {
+		Name = "Gaia",
+		Type = "Earth",
+		BaseStats = { Atk = 15, Def = 20, Spd = 5 },
+		Rarity = "Epic"
+	},
+	-- Legendary
+	Celestia = {
+		Name = "Celestia",
+		Type = "Light",
+		BaseStats = { Atk = 25, Def = 15, Spd = 20 },
+		Rarity = "Legendary"
 	}
 }
 
@@ -33,6 +67,14 @@ Constants.RARITY = {
 	Rare = 10,
 	Epic = 4,
 	Legendary = 1
+}
+
+Constants.GACHA = {
+	COST = {
+		Currency = "Essence",
+		Amount = 100
+	},
+	TEN_PULL_BONUS = true -- Maybe guaranteed uncommon+?
 }
 
 Constants.REALM_ISLAND_SIZE = Vector3.new(200, 20, 200)

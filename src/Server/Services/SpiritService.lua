@@ -65,36 +65,44 @@ function SpiritService:CheckStarterSpirit(player: Player, data: any)
 	
 	if not hasSpirits then
 		local starterId = Constants.STARTING_SPIRIT
-		local starterDef = Constants.SPIRITS[starterId]
-		
-		if starterDef then
-			-- Create spirit instance data
-			local newSpirit = {
-				Id = starterId,
-				Name = starterDef.Name,
-				Level = 1,
-				Exp = 0,
-				Stats = table.clone(starterDef.BaseStats),
-				Obtained = os.time()
-			}
-			
-			-- Add to inventory (using a unique key, e.g., GUID or just simple index for now)
-			-- For simplicity, let's use a simple string key "Spirit_1"
-			inventory.Spirits["Spirit_1"] = newSpirit
-			
-			-- Equip it
-			if not inventory.Equipped then
-				inventory.Equipped = {}
-			end
-			inventory.Equipped["Main"] = "Spirit_1"
-			
-			print(`[SpiritService] Gave Starter Spirit ({starterDef.Name}) to {player.Name}`)
-			
-			if _G.UpdateHUD then
-				_G.UpdateHUD(player)
-			end
-		end
+		self:AddSpirit(player, starterId)
 	end
+end
+
+function SpiritService:AddSpirit(player: Player, spiritId: string)
+	local data = _G.GetData(player)
+	if not data then return nil end
+	
+	local spiritDef = Constants.SPIRITS[spiritId]
+	if not spiritDef then return nil end
+	
+	local inventory = data.Inventory
+	if not inventory.Spirits then inventory.Spirits = {} end
+	
+	-- Generate unique ID (simple counter for now, or GUID)
+	local count = 0
+	for _ in pairs(inventory.Spirits) do count += 1 end
+	local uniqueId = spiritId .. "_" .. (count + 1) .. "_" .. os.time()
+	
+	local newSpirit = {
+		Id = spiritId,
+		UniqueId = uniqueId,
+		Name = spiritDef.Name,
+		Level = 1,
+		Exp = 0,
+		Stats = table.clone(spiritDef.BaseStats),
+		Obtained = os.time()
+	}
+	
+	inventory.Spirits[uniqueId] = newSpirit
+	
+	print(`[SpiritService] Added Spirit {spiritDef.Name} to {player.Name}`)
+	
+	if _G.UpdateHUD then
+		_G.UpdateHUD(player)
+	end
+	
+	return newSpirit
 end
 
 function SpiritService:Start()

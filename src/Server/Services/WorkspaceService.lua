@@ -1,101 +1,159 @@
 --!strict
-local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
 
 local WorkspaceService = {}
 
 function WorkspaceService:Init()
-	print("[WorkspaceService] Initializing...")
-	self:EnsureHubExists()
+	print("[WorkspaceService] Init")
 end
 
 function WorkspaceService:Start()
-	print("[WorkspaceService] Starting...")
-	self:SpawnDummy()
+	print("[WorkspaceService] Start")
+	self:CreateSpawnHub()
+	self:CreateBiomePads()
+	self:CreateTestDummy()
+	self:SetupEnvironment()
+	self:CreateGachaMachine()
 end
 
-function WorkspaceService:SpawnDummy()
-	local hub = Workspace:FindFirstChild("Hub")
-	if not hub then return end
+function WorkspaceService:CreateSpawnHub()
+	local spawnLocation = Workspace:FindFirstChild("SpawnLocation")
+	if not spawnLocation then
+		local part = Instance.new("Part")
+		part.Name = "SpawnLocation"
+		part.Size = Vector3.new(150, 1, 150)
+		part.Position = Vector3.new(0, 0, 0)
+		part.Anchored = true
+		part.Material = Enum.Material.SmoothPlastic
+		part.Color = Color3.fromRGB(50, 50, 60)
+		part.Parent = Workspace
+		
+		local spawn = Instance.new("SpawnLocation")
+		spawn.Size = Vector3.new(12, 1, 12)
+		spawn.Position = Vector3.new(0, 1, 0)
+		spawn.Anchored = true
+		spawn.Transparency = 1
+		spawn.CanCollide = false
+		spawn.Parent = Workspace
+	end
+	
+	-- Welcome Sign
+	local sign = Instance.new("Part")
+	sign.Name = "WelcomeSign"
+	sign.Size = Vector3.new(20, 10, 1)
+	sign.Position = Vector3.new(0, 10, -60)
+	sign.Anchored = true
+	sign.Color = Color3.fromRGB(20, 20, 20)
+	sign.Parent = Workspace
+	
+	local sg = Instance.new("SurfaceGui")
+	sg.Face = Enum.NormalId.Front
+	sg.Parent = sign
+	
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 1, 0)
+	label.BackgroundTransparency = 1
+	label.Text = "AETHERIA"
+	label.TextColor3 = Color3.fromRGB(0, 255, 255)
+	label.TextScaled = true
+	label.Font = Enum.Font.GothamBlack
+	label.Parent = sg
+end
 
-	if hub:FindFirstChild("TrainingDummy") then return end
+function WorkspaceService:CreateBiomePads()
+	local pads = {
+		{Name = "Glitch Wastes", Color = Color3.fromRGB(255, 0, 255), Pos = Vector3.new(-50, 2, 50)},
+		{Name = "Azure Sea", Color = Color3.fromRGB(0, 100, 255), Pos = Vector3.new(0, 2, 50)},
+		{Name = "Celestial Arena", Color = Color3.fromRGB(255, 215, 0), Pos = Vector3.new(50, 2, 50)},
+	}
+	
+	for _, data in ipairs(pads) do
+		local pad = Instance.new("Part")
+		pad.Name = data.Name .. "Pad"
+		pad.Size = Vector3.new(10, 1, 10)
+		pad.Position = data.Pos
+		pad.Anchored = true
+		pad.Color = data.Color
+		pad.Material = Enum.Material.Neon
+		pad.Parent = Workspace
+	end
+end
 
+function WorkspaceService:CreateTestDummy()
 	local dummy = Instance.new("Model")
-	dummy.Name = "TrainingDummy"
+	dummy.Name = "TestDummy"
 	
 	local humanoid = Instance.new("Humanoid")
-	humanoid.MaxHealth = 100
-	humanoid.Health = 100
-	humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOn
+	humanoid.MaxHealth = 1000
+	humanoid.Health = 1000
+	humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Always
 	humanoid.Parent = dummy
 	
-	local rootPart = Instance.new("Part")
-	rootPart.Name = "HumanoidRootPart"
-	rootPart.Size = Vector3.new(4, 5, 1)
-	rootPart.Position = Vector3.new(10, 55, 0) -- Near spawn
-	rootPart.Anchored = true
-	rootPart.CanCollide = true
-	rootPart.Color = Color3.fromRGB(200, 50, 50)
-	rootPart.Parent = dummy
+	local root = Instance.new("Part")
+	root.Name = "HumanoidRootPart"
+	root.Size = Vector3.new(2, 5, 2)
+	root.Position = Vector3.new(25, 3.5, 25)
+	root.Anchored = true
+	root.Color = Color3.fromRGB(255, 80, 80)
+	root.Parent = dummy
 	
-	dummy.PrimaryPart = rootPart
-	dummy.Parent = hub
+	dummy.PrimaryPart = root
+	dummy.Parent = Workspace
 	
-	print("[WorkspaceService] Spawning Training Dummy")
-end
-
-function WorkspaceService:EnsureHubExists()
-	local hub = Workspace:FindFirstChild("Hub")
-	if not hub then
-		hub = Instance.new("Folder")
-		hub.Name = "Hub"
-		hub.Parent = Workspace
-		print("[WorkspaceService] Created Hub folder")
-	end
-	
-	local spawnLocation = hub:FindFirstChild("SpawnLocation")
-	if not spawnLocation then
-		spawnLocation = Instance.new("SpawnLocation")
-		spawnLocation.Name = "SpawnLocation"
-		spawnLocation.Size = Vector3.new(200, 5, 200) -- Large platform
-		spawnLocation.Position = Vector3.new(0, 50, 0) -- Height 50
-		spawnLocation.Anchored = true
-		spawnLocation.CanCollide = true
-		spawnLocation.Material = Enum.Material.Neon
-		spawnLocation.Color = Color3.fromRGB(255, 255, 255)
-		spawnLocation.Parent = hub
-		print("[WorkspaceService] Created Hub SpawnLocation")
-	end
-end
-
-function WorkspaceService:TeleportToHub(player: Player)
-	local hub = Workspace:FindFirstChild("Hub")
-	if not hub then return end
-	
-	local spawnLocation = hub:FindFirstChild("SpawnLocation")
-	if not spawnLocation or not spawnLocation:IsA("BasePart") then return end
-	
-	if player.Character and player.Character.PrimaryPart then
-		local targetCFrame = spawnLocation.CFrame + Vector3.new(0, 5, 0)
-		
-		-- Streaming Safety
-		player:RequestStreamAroundAsync(targetCFrame.Position)
-		
-		local rootPart = player.Character.PrimaryPart
-		if rootPart then
-			rootPart.Anchored = true
-			rootPart.AssemblyLinearVelocity = Vector3.zero
-			rootPart.AssemblyAngularVelocity = Vector3.zero
-			
-			player.Character:PivotTo(targetCFrame)
-			
-			task.delay(1, function()
-				if rootPart and rootPart.Parent then
-					rootPart.Anchored = false
-				end
-			end)
+	-- Regen script
+	task.spawn(function()
+		while true do
+			task.wait(3)
+			if humanoid.Health < humanoid.MaxHealth then
+				humanoid.Health = humanoid.MaxHealth
+			end
 		end
-	end
+	end)
+end
+
+function WorkspaceService:SetupEnvironment()
+	local lighting = game:GetService("Lighting")
+	lighting.Ambient = Color3.fromRGB(50, 40, 70)
+	lighting.OutdoorAmbient = Color3.fromRGB(30, 20, 50)
+	lighting.TimeOfDay = "00:00:00"
+end
+
+function WorkspaceService:CreateGachaMachine()
+	local machine = Instance.new("Part")
+	machine.Name = "GachaMachine"
+	machine.Size = Vector3.new(6, 8, 6)
+	machine.Position = Vector3.new(-30, 5, -30)
+	machine.Anchored = true
+	machine.Color = Color3.fromRGB(100, 50, 200)
+	machine.Material = Enum.Material.Neon
+	machine.Parent = Workspace
+	
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ObjectText = "Spirit Summon"
+	prompt.ActionText = "Summon"
+	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = machine
+	
+	prompt.Triggered:Connect(function(player)
+		print(player.Name .. " interacted with Gacha Machine")
+	end)
+	
+	local sg = Instance.new("SurfaceGui")
+	sg.Face = Enum.NormalId.Front
+	sg.Parent = machine
+	
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 0.5, 0)
+	label.Position = UDim2.new(0, 0, 0.2, 0)
+	label.BackgroundTransparency = 1
+	label.Text = "SPIRIT\nSUMMON"
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextScaled = true
+	label.Font = Enum.Font.GothamBlack
+	label.Parent = sg
 end
 
 return WorkspaceService
