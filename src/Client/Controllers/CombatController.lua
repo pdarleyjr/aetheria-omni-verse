@@ -7,6 +7,8 @@ local TweenService = game:GetService("TweenService")
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Constants = require(ReplicatedStorage.Shared.Modules.Constants)
 
+local VisualsController = require(script.Parent.VisualsController)
+
 local CombatController = {}
 local lastAttackTime = 0
 
@@ -100,6 +102,10 @@ function CombatController:AttemptAttack(overrideTarget)
 					-- Visuals (Placeholder)
 					print("[CombatController] Attacking " .. model.Name)
 					
+					if character.PrimaryPart then
+						VisualsController:PlayAttackEffect(character.PrimaryPart.Position, model.PrimaryPart.Position)
+					end
+
 					-- Send to server
 					local attackRemote = Remotes.GetEvent("RequestAttack")
 					attackRemote:FireServer(model)

@@ -268,6 +268,44 @@ function WorkspaceService:SetupEnvironment()
 	lighting.Ambient = Color3.fromRGB(50, 40, 70)
 	lighting.OutdoorAmbient = Color3.fromRGB(30, 20, 50)
 	lighting.TimeOfDay = "00:00:00"
+	lighting.Brightness = 2
+	lighting.ShadowSoftness = 0.2
+	lighting.GlobalShadows = true
+	
+	-- Atmosphere
+	local atmosphere = lighting:FindFirstChild("Atmosphere") or Instance.new("Atmosphere")
+	atmosphere.Density = 0.3
+	atmosphere.Offset = 0.25
+	atmosphere.Color = Color3.fromRGB(100, 80, 150)
+	atmosphere.Decay = Color3.fromRGB(50, 40, 70)
+	atmosphere.Glare = 0.5
+	atmosphere.Haze = 1
+	atmosphere.Parent = lighting
+	
+	-- Sky
+	local sky = lighting:FindFirstChild("Sky") or Instance.new("Sky")
+	sky.SkyboxBk = "rbxassetid://7018684000" -- Placeholder skybox IDs
+	sky.SkyboxDn = "rbxassetid://7018684000"
+	sky.SkyboxFt = "rbxassetid://7018684000"
+	sky.SkyboxLf = "rbxassetid://7018684000"
+	sky.SkyboxRt = "rbxassetid://7018684000"
+	sky.SkyboxUp = "rbxassetid://7018684000"
+	sky.SunTextureId = "rbxassetid://6196665106"
+	sky.Parent = lighting
+	
+	-- Bloom
+	local bloom = lighting:FindFirstChild("Bloom") or Instance.new("BloomEffect")
+	bloom.Intensity = 0.4
+	bloom.Size = 24
+	bloom.Threshold = 0.8
+	bloom.Parent = lighting
+	
+	-- ColorCorrection
+	local cc = lighting:FindFirstChild("ColorCorrection") or Instance.new("ColorCorrectionEffect")
+	cc.Brightness = 0.05
+	cc.Contrast = 0.1
+	cc.Saturation = 0.2
+	cc.Parent = lighting
 end
 
 function WorkspaceService:SpawnSummoningAltar()

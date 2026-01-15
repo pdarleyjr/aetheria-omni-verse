@@ -1,0 +1,64 @@
+--!strict
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
+local Workspace = game:GetService("Workspace")
+
+local VisualsController = {}
+
+function VisualsController:Init()
+	print("[VisualsController] Initializing...")
+end
+
+function VisualsController:Start()
+	print("[VisualsController] Starting...")
+end
+
+function VisualsController:PlayHitEffect(position: Vector3, color: Color3?)
+	local part = Instance.new("Part")
+	part.Size = Vector3.new(1, 1, 1)
+	part.Position = position
+	part.Anchored = true
+	part.CanCollide = false
+	part.Material = Enum.Material.Neon
+	part.Color = color or Color3.fromRGB(255, 255, 255)
+	part.Transparency = 0.2
+	part.Shape = Enum.PartType.Ball
+	part.Parent = Workspace
+	
+	local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	local goal = {
+		Size = Vector3.new(3, 3, 3),
+		Transparency = 1
+	}
+	
+	local tween = TweenService:Create(part, tweenInfo, goal)
+	tween:Play()
+	
+	Debris:AddItem(part, 0.3)
+end
+
+function VisualsController:PlayAttackEffect(origin: Vector3, target: Vector3, color: Color3?)
+	local distance = (target - origin).Magnitude
+	local part = Instance.new("Part")
+	part.Size = Vector3.new(0.5, 0.5, distance)
+	part.CFrame = CFrame.lookAt(origin, target) * CFrame.new(0, 0, -distance/2)
+	part.Anchored = true
+	part.CanCollide = false
+	part.Material = Enum.Material.Neon
+	part.Color = color or Color3.fromRGB(255, 255, 100)
+	part.Parent = Workspace
+	
+	local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	local goal = {
+		Size = Vector3.new(0, 0, distance),
+		Transparency = 1
+	}
+	
+	local tween = TweenService:Create(part, tweenInfo, goal)
+	tween:Play()
+	
+	Debris:AddItem(part, 0.2)
+end
+
+return VisualsController
