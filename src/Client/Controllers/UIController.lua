@@ -11,6 +11,7 @@ local TweenService = game:GetService("TweenService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Maid = require(Shared.Modules.Maid)
 local Signal = require(Shared.Modules.Signal)
+local Remotes = require(Shared.Remotes)
 
 local UIController = {}
 UIController.Maid = Maid.new()
@@ -33,10 +34,10 @@ function UIController:Init()
 	self:CreateHUD()
 	
 	-- Listen for currency changes
-	local DataChangedEvent = ReplicatedStorage.Shared.Remotes.Data:WaitForChild("DataChanged")
-	DataChangedEvent.OnClientEvent:Connect(function(path, newValue)
-		if path == "Currencies" then
-			self:UpdateCurrencyDisplay(newValue)
+	local UpdateHUD = Remotes.GetEvent("UpdateHUD")
+	UpdateHUD.OnClientEvent:Connect(function(data)
+		if data and data.Currencies then
+			self:UpdateCurrencyDisplay(data.Currencies)
 		end
 	end)
 	
@@ -172,7 +173,7 @@ end
 
 function UIController:OnAttackPressed()
 	-- Visual feedback
-	local RequestAttack = ReplicatedStorage.Shared.Remotes.Combat:FindFirstChild("RequestAttack")
+	local RequestAttack = Remotes.GetEvent("RequestAttack")
 	if RequestAttack then
 		local targetPos = Vector3.new(0, 0, 0) -- Default forward
 		if self.Player.Character then
