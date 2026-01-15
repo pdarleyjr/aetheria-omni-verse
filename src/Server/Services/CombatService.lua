@@ -56,12 +56,15 @@ function CombatService:HandleAttack(player: Player, target: Instance?)
 	local bonus = 0
 	
 	local data = DataService.GetData(player)
-	if data and data.Inventory and data.Inventory.Equipped and data.Inventory.Equipped.Main then
-		local spiritId = data.Inventory.Equipped.Main
-		local spirit = data.Inventory.Spirits[spiritId]
-		if spirit and spirit.Stats then
-			bonus = spirit.Stats.Atk or 0
-			damage = damage + bonus
+	if data and data.Inventory then
+		local equippedId = data.Inventory.EquippedSpirit
+		if equippedId then
+			local spirit = data.Inventory.Spirits[equippedId]
+			if spirit and spirit.Stats then
+				-- Damage Formula: Base + Spirit Attack
+				bonus = spirit.Stats.Atk or 0
+				damage = damage + bonus
+			end
 		end
 	end
 	

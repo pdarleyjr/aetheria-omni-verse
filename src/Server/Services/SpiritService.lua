@@ -112,6 +112,8 @@ function SpiritService:AddSpirit(player: Player, spiritId: string)
 		Obtained = os.time()
 	}
 	
+	self:UpdateStats(newSpirit) -- Ensure stats are calculated correctly
+	
 	inventory.Spirits[uniqueId] = newSpirit
 	
 	print(`[SpiritService] Added Spirit {spiritDef.Name} to {player.Name}`)
@@ -145,6 +147,62 @@ function SpiritService:EquipSpirit(player: Player, spiritUniqueId: string)
 	
 	-- Update character visuals
 	self:UpdateCharacterSpirit(player, spirit)
+end
+
+function SpiritService:AddExp(player: Player, amount: number)
+	local data = _G.GetData(player)
+	if not data or not data.Inventory then return end
+	
+	local equippedId = data.Inventory.EquippedSpirit
+	if not equippedId then return end
+	
+	local spirit = data.Inventory.Spirits[equippedId]
+	if not spirit then return end
+	
+	spirit.Exp = (spirit.Exp or 0) + amount
+	print(`[SpiritService] Added {amount} XP to {spirit.Name}. Total: {spirit.Exp}`)
+	
+	self:CheckLevelUp(player, spirit)
+	
+	if _G.UpdateHUD then
+		_G.UpdateHUD(player)
+	end
+end
+
+function SpiritService:CheckLevelUp(player: Player, spirit: any)
+	local maxLevel = Constants.LEVELING.MAX_LEVEL
+	if spirit.Level >= maxLevel then return end
+	
+	local requiredExp = self:GetExpForLevel(spirit.Level + 1)
+	
+	while spirit.Exp >= requiredExp and spirit.Level < maxLevel do
+		spirit.Exp -= requiredExp
+		spirit.Level += 1
+		self:UpdateStats(spirit)
+		print(`[SpiritService] {spirit.Name} leveled up to {spirit.Level}!`)
+		
+		-- Visual effect could go here
+		
+		requiredExp = self:GetExpForLevel(spirit.Level + 1)
+	end
+end
+
+function SpiritService:GetExpForLevel(level: number): number
+	-- Simple formula: Base * (Level-1)^Exponent
+	return math.floor(Constants.LEVELING.BASE_EXP * math.pow(level - 1, Constants.LEVELING.EXP_EXPONENT))
+end
+
+function SpiritService:UpdateStats(spirit: any)
+	local spiritDef = Constants.SPIRITS[spirit.Id]
+	if not spiritDef then return end
+	
+	local levelMultiplier = 1 + ((spirit.Level - 1) * 0.1) -- 10% per level
+	
+	spirit.Stats = {
+		Atk = math.floor(spiritDef.BaseStats.Atk * levelMultiplier),
+		Def = math.floor(spiritDef.BaseStats.Def * levelMultiplier),
+		Spd = math.floor(spiritDef.BaseStats.Spd * levelMultiplier)
+	}
 end
 
 function SpiritService:UpdateCharacterSpirit(player: Player, spirit: any)

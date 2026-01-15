@@ -128,4 +128,10 @@ Constants.COMBAT = {
 	DAMAGE = 10,
 }
 
+Constants.LEVELING = {
+	MAX_LEVEL = 100,
+	BASE_EXP = 100, -- XP needed for level 2
+	EXP_EXPONENT = 1.5, -- Curve factor
+}
+
 return Constants

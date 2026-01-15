@@ -6,6 +6,7 @@ local Workspace = game:GetService("Workspace")
 
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Constants = require(ReplicatedStorage.Shared.Modules.Constants)
+local SpiritService = require(script.Parent.SpiritService)
 
 local EnemyService = {}
 local enemies = {}
@@ -42,6 +43,7 @@ end
 function EnemyService:SpawnEnemy(name: string, position: Vector3)
 	local model = Instance.new("Model")
 	model.Name = name
+	model:SetAttribute("ExpReward", 25) -- Base XP reward
 	
 	local humanoid = Instance.new("Humanoid")
 	humanoid.MaxHealth = 100
@@ -71,7 +73,15 @@ function EnemyService:UpdateEnemies()
 		local humanoid = enemy:FindFirstChild("Humanoid")
 		local rootPart = enemy:FindFirstChild("HumanoidRootPart")
 		
-		if humanoid and rootPart and humanoid.Health > 0 then
+		if humanoid and rootPart then
+			if humanoid.Health <= 0 then
+				if not enemy:GetAttribute("Dead") then
+					enemy:SetAttribute("Dead", true)
+					self:HandleEnemyDeath(enemy)
+				end
+				continue
+			end
+			
 			local target = self:FindNearestPlayer(rootPart.Position)
 			if target and target.Character and target.Character.PrimaryPart then
 				local targetPos = target.Character.PrimaryPart.Position
@@ -107,6 +117,30 @@ function EnemyService:FindNearestPlayer(position: Vector3): Player?
 	end
 	
 	return nearestPlayer
+end
+
+function EnemyService:HandleEnemyDeath(enemy: Model)
+	local rootPart = enemy:FindFirstChild("HumanoidRootPart")
+	if not rootPart then 
+		enemy:Destroy()
+		return 
+	end
+	
+	-- Find killer (nearest player for now)
+	local killer = self:FindNearestPlayer(rootPart.Position)
+	if killer then
+		local exp = enemy:GetAttribute("ExpReward") or 10
+		SpiritService:AddExp(killer, exp)
+		print(`[EnemyService] {killer.Name} killed {enemy.Name} and gained {exp} XP!`)
+	end
+	
+	-- Visual effect?
+	
+	task.delay(1, function()
+		if enemy and enemy.Parent then
+			enemy:Destroy()
+		end
+	end)
 end
 
 return EnemyService
