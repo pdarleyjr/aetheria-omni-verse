@@ -91,6 +91,27 @@ Constants.REALM_GRID_WIDTH = 100
 
 Constants.STARTING_SPIRIT = "Ignis"
 
+Constants.BIOMES = {
+	{
+		Name = "Glitch Wastes",
+		Color = Color3.fromRGB(255, 0, 255),
+		Position = Vector3.new(-50, 5, 50),
+		Description = "A chaotic realm of corrupted data."
+	},
+	{
+		Name = "Azure Sea",
+		Color = Color3.fromRGB(0, 100, 255),
+		Position = Vector3.new(0, 5, 50),
+		Description = "A vast ocean of tranquility."
+	},
+	{
+		Name = "Celestial Arena",
+		Color = Color3.fromRGB(255, 215, 0),
+		Position = Vector3.new(50, 5, 50),
+		Description = "Where legends prove their worth."
+	}
+}
+
 Constants.COMBAT = {
 	MAX_DISTANCE = 10,
 	COOLDOWN = 0.5,

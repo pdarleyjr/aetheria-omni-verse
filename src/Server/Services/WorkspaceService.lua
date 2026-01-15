@@ -3,6 +3,8 @@ local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
+local Constants = require(ReplicatedStorage.Shared.Modules.Constants)
+
 local WorkspaceService = {}
 
 function WorkspaceService:Init()
@@ -12,7 +14,7 @@ end
 function WorkspaceService:Start()
 	print("[WorkspaceService] Start")
 	self:CreateSpawnHub()
-	self:CreateBiomePads()
+	self:SpawnPortals()
 	self:CreateTestDummy()
 	self:SetupEnvironment()
 	self:SpawnSummoningAltar()
@@ -62,23 +64,47 @@ function WorkspaceService:CreateSpawnHub()
 	label.Parent = sg
 end
 
-function WorkspaceService:CreateBiomePads()
-	local pads = {
-		{Name = "Glitch Wastes", Color = Color3.fromRGB(255, 0, 255), Pos = Vector3.new(-50, 2, 50)},
-		{Name = "Azure Sea", Color = Color3.fromRGB(0, 100, 255), Pos = Vector3.new(0, 2, 50)},
-		{Name = "Celestial Arena", Color = Color3.fromRGB(255, 215, 0), Pos = Vector3.new(50, 2, 50)},
-	}
-	
-	for _, data in ipairs(pads) do
-		local pad = Instance.new("Part")
-		pad.Name = data.Name .. "Pad"
-		pad.Size = Vector3.new(10, 1, 10)
-		pad.Position = data.Pos
-		pad.Anchored = true
-		pad.Color = data.Color
-		pad.Material = Enum.Material.Neon
-		pad.Parent = Workspace
+function WorkspaceService:SpawnPortals()
+	for _, biome in ipairs(Constants.BIOMES) do
+		self:CreatePortal(biome)
 	end
+end
+
+function WorkspaceService:CreatePortal(biomeData)
+	local portal = Instance.new("Part")
+	portal.Name = biomeData.Name .. "Portal"
+	portal.Size = Vector3.new(8, 12, 2)
+	portal.Position = biomeData.Position
+	portal.Anchored = true
+	portal.Color = biomeData.Color
+	portal.Material = Enum.Material.Neon
+	portal.Parent = Workspace
+	
+	-- Add a label
+	local sg = Instance.new("SurfaceGui")
+	sg.Face = Enum.NormalId.Front
+	sg.Parent = portal
+	
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 0.3, 0)
+	label.Position = UDim2.new(0, 0, 0.1, 0)
+	label.BackgroundTransparency = 1
+	label.Text = biomeData.Name
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextScaled = true
+	label.Font = Enum.Font.GothamBlack
+	label.Parent = sg
+	
+	-- Add description
+	local desc = Instance.new("TextLabel")
+	desc.Size = UDim2.new(0.9, 0, 0.2, 0)
+	desc.Position = UDim2.new(0.05, 0, 0.5, 0)
+	desc.BackgroundTransparency = 1
+	desc.Text = biomeData.Description
+	desc.TextColor3 = Color3.new(0.9, 0.9, 0.9)
+	desc.TextScaled = true
+	desc.Font = Enum.Font.Gotham
+	desc.Parent = sg
 end
 
 function WorkspaceService:CreateTestDummy()

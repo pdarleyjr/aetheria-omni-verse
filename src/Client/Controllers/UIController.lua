@@ -9,6 +9,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Maid = require(Shared.Modules.Maid)
@@ -212,12 +213,28 @@ function UIController:OnAttackPressed()
 	-- Visual feedback
 	local RequestAttack = Remotes.GetEvent("RequestAttack")
 	if RequestAttack then
-		local targetPos = Vector3.new(0, 0, 0) -- Default forward
-		if self.Player.Character then
-			targetPos = self.Player.Character:GetPivot().Position + self.Player.Character:GetPivot().LookVector * 10
-		end
+		local targetPos = self:GetRaycastTarget()
 		RequestAttack:FireServer(targetPos)
 	end
+end
+
+function UIController:GetRaycastTarget()
+	local mouseLocation = UserInputService:GetMouseLocation()
+	local camera = Workspace.CurrentCamera
+	if not camera then return Vector3.zero end
+
+	local unitRay = camera:ViewportPointToRay(mouseLocation.X, mouseLocation.Y)
+	local raycastParams = RaycastParams.new()
+	if self.Player.Character then
+		raycastParams.FilterDescendantsInstances = {self.Player.Character}
+	end
+	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+
+	local result = Workspace:Raycast(unitRay.Origin, unitRay.Direction * 100, raycastParams)
+	if result then
+		return result.Position
+	end
+	return unitRay.Origin + unitRay.Direction * 100
 end
 
 return UIController
