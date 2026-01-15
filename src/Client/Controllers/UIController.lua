@@ -191,6 +191,17 @@ function UIController:CreateMenuButtons(parent)
 			InventoryController:Toggle()
 		end
 	end)
+	
+	-- Hub Button
+	local hubBtn = self:CreateActionButton("🏠", UDim2.new(0, 0, 0, 0), Color3.fromRGB(50, 150, 100))
+	hubBtn.Size = UDim2.new(0, 50, 0, 50)
+	hubBtn.LayoutOrder = 2
+	hubBtn.Parent = frame
+	
+	hubBtn.Activated:Connect(function()
+		local TeleportToHub = Remotes.GetEvent("TeleportToHub")
+		TeleportToHub:FireServer()
+	end)
 end
 
 function UIController:UpdateCurrencyDisplay(currencies)

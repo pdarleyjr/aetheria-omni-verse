@@ -4,12 +4,19 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
 local Constants = require(ReplicatedStorage.Shared.Modules.Constants)
+local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Random = Random.new()
 
 local WorkspaceService = {}
 
 function WorkspaceService:Init()
 	print("[WorkspaceService] Init")
+	
+	-- Initialize Remotes
+	self.TeleportToHubRemote = Remotes.GetEvent("TeleportToHub")
+	self.TeleportToHubRemote.OnServerEvent:Connect(function(player)
+		self:TeleportToHub(player)
+	end)
 end
 
 function WorkspaceService:Start()
@@ -20,6 +27,22 @@ function WorkspaceService:Start()
 	self:SetupEnvironment()
 	self:SpawnSummoningAltar()
 	self:SpawnGlitchBiome()
+end
+
+function WorkspaceService:TeleportToHub(player)
+	local character = player.Character
+	if character then
+		local rootPart = character:FindFirstChild("HumanoidRootPart")
+		if rootPart then
+			-- Check if already teleporting to prevent spam
+			if not character:GetAttribute("Teleporting") then
+				character:SetAttribute("Teleporting", true)
+				rootPart.CFrame = CFrame.new(0, 5, 0)
+				task.wait(1)
+				character:SetAttribute("Teleporting", nil)
+			end
+		end
+	end
 end
 
 function WorkspaceService:CreateSpawnHub()

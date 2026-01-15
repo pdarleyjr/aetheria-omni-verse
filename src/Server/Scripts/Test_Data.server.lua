@@ -64,6 +64,30 @@ task.spawn(function()
 		print("DATA TEST: Passive Income Check: " .. tostring(income))
 		
 		print("DATA TEST: Player " .. player.Name .. " ready for testing.")
+		
+		-- Test Commands
+		player.Chatted:Connect(function(msg)
+			local args = string.split(msg, " ")
+			if args[1] == "/tp" then
+				local x = tonumber(args[2])
+				local y = tonumber(args[3])
+				local z = tonumber(args[4])
+				
+				if x and y and z then
+					local char = player.Character
+					if char and char:FindFirstChild("HumanoidRootPart") then
+						char.HumanoidRootPart.CFrame = CFrame.new(x, y, z)
+						print("DATA TEST: Teleported " .. player.Name .. " to " .. x .. ", " .. y .. ", " .. z)
+					end
+				end
+			elseif args[1] == "/hub" then
+				local char = player.Character
+				if char and char:FindFirstChild("HumanoidRootPart") then
+					char.HumanoidRootPart.CFrame = CFrame.new(0, 5, 0)
+					print("DATA TEST: Teleported " .. player.Name .. " to Hub")
+				end
+			end
+		end)
 	end
 
 	Players.PlayerAdded:Connect(onPlayerAdded)
