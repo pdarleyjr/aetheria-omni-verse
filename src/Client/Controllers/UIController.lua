@@ -16,10 +16,12 @@ local Maid = require(Shared.Modules.Maid)
 local Signal = require(Shared.Modules.Signal)
 local Remotes = require(Shared.Remotes)
 
--- Lazy load InventoryController to avoid circular dependency issues during Init
+-- Lazy load Controllers to avoid circular dependency issues during Init
 local InventoryController
+local CombatController
 task.spawn(function()
 	InventoryController = require(script.Parent.InventoryController)
+	CombatController = require(script.Parent.CombatController)
 end)
 
 local UIController = {}
@@ -211,19 +213,20 @@ end
 
 function UIController:OnAttackPressed()
 	-- Visual feedback
-	local RequestAttack = Remotes.GetEvent("RequestAttack")
-	if RequestAttack then
-		local targetPos = self:GetRaycastTarget()
-		RequestAttack:FireServer(targetPos)
+	if CombatController then
+		local target = self:GetRaycastTarget()
+		CombatController:AttemptAttack(target)
 	end
 end
 
 function UIController:GetRaycastTarget()
-	local mouseLocation = UserInputService:GetMouseLocation()
 	local camera = Workspace.CurrentCamera
-	if not camera then return Vector3.zero end
+	if not camera then return nil end
 
-	local unitRay = camera:ViewportPointToRay(mouseLocation.X, mouseLocation.Y)
+	-- Raycast from center of screen
+	local viewportSize = camera.ViewportSize
+	local unitRay = camera:ViewportPointToRay(viewportSize.X / 2, viewportSize.Y / 2)
+	
 	local raycastParams = RaycastParams.new()
 	if self.Player.Character then
 		raycastParams.FilterDescendantsInstances = {self.Player.Character}
@@ -231,10 +234,10 @@ function UIController:GetRaycastTarget()
 	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
 
 	local result = Workspace:Raycast(unitRay.Origin, unitRay.Direction * 100, raycastParams)
-	if result then
-		return result.Position
+	if result and result.Instance then
+		return result.Instance
 	end
-	return unitRay.Origin + unitRay.Direction * 100
+	return nil
 end
 
 return UIController

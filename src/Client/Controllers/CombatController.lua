@@ -68,15 +68,19 @@ function CombatController:ShowDamageNumber(targetPart, damage, isCritical)
 	end)
 end
 
-function CombatController:AttemptAttack()
+function CombatController:AttemptAttack(overrideTarget)
 	local now = os.clock()
 	if now - lastAttackTime < Constants.COMBAT.COOLDOWN then
 		return
 	end
 	
-	local player = Players.LocalPlayer
-	local mouse = player:GetMouse()
-	local target = mouse.Target
+	local target = overrideTarget
+	
+	if not target then
+		local player = Players.LocalPlayer
+		local mouse = player:GetMouse()
+		target = mouse.Target
+	end
 	
 	if target and target.Parent then
 		local model = target.Parent
@@ -86,6 +90,7 @@ function CombatController:AttemptAttack()
 		
 		if model and model:FindFirstChild("Humanoid") then
 			-- Check distance locally for immediate feedback/prevention
+			local player = Players.LocalPlayer
 			local character = player.Character
 			if character and character.PrimaryPart and model.PrimaryPart then
 				local distance = (character.PrimaryPart.Position - model.PrimaryPart.Position).Magnitude
@@ -96,7 +101,7 @@ function CombatController:AttemptAttack()
 					print("[CombatController] Attacking " .. model.Name)
 					
 					-- Send to server
-					local attackRemote = Remotes.GetEvent("Attack")
+					local attackRemote = Remotes.GetEvent("RequestAttack")
 					attackRemote:FireServer(model)
 				end
 			end
