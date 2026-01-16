@@ -15,6 +15,7 @@ local lastAttackTime = 0
 function CombatController:Init()
 	print("[CombatController] Initializing...")
 	
+	self.RequestAttack = Remotes.GetEvent("RequestAttack")
 	local showDamageRemote = Remotes.GetEvent("ShowDamage")
 	showDamageRemote.OnClientEvent:Connect(function(targetPart, damage, isCritical)
 		self:ShowDamageNumber(targetPart, damage, isCritical)
@@ -107,8 +108,7 @@ function CombatController:AttemptAttack(overrideTarget)
 					end
 
 					-- Send to server
-					local attackRemote = Remotes.GetEvent("RequestAttack")
-					attackRemote:FireServer(model)
+					self.RequestAttack:FireServer(model)
 				end
 			end
 		end

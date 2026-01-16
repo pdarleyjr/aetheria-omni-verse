@@ -5,6 +5,7 @@ local Players = game:GetService("Players")
 
 local Constants = require(ReplicatedStorage.Shared.Modules.Constants)
 local Signal = require(ReplicatedStorage.Shared.Modules.Signal)
+local Remotes = require(ReplicatedStorage.Shared.Remotes)
 
 local BossService = {}
 BossService.BossModel = nil
@@ -15,7 +16,10 @@ BossService.NextAttackTime = 0
 
 function BossService:Init()
 	print("[BossService] Initializing...")
-	self.Remotes = ReplicatedStorage.Remotes.Boss
+	self.BossSpawned = Remotes.GetEvent("BossSpawned")
+	self.BossUpdate = Remotes.GetEvent("BossUpdate")
+	self.BossAttack = Remotes.GetEvent("BossAttack")
+	self.BossDefeated = Remotes.GetEvent("BossDefeated")
 end
 
 function BossService:Start()
@@ -65,7 +69,7 @@ function BossService:SpawnBoss(bossId)
 	self.BossModel = model
 	
 	-- Notify Clients
-	self.Remotes.BossSpawned:FireAllClients({
+	self.BossSpawned:FireAllClients({
 		Name = bossData.Name,
 		MaxHealth = self.MaxHealth,
 		Model = model
@@ -88,11 +92,12 @@ function BossService:PerformAttack()
 	self.NextAttackTime = os.clock() + attack.Cooldown
 	
 	-- Telegraph
-	self.Remotes.BossAttack:FireAllClients("Spike", attack.Duration or 1)
+	self.BossAttack:FireAllClients("Spike", attack.Duration or 1)
 	
 	-- Deal Damage (Delayed)
 	task.delay(1, function()
 		if self.State ~= "Active" then return end
+		if not self.BossModel or not self.BossModel.PrimaryPart then return end
 		
 		local origin = self.BossModel.PrimaryPart.Position
 		for _, player in ipairs(Players:GetPlayers()) do
@@ -121,7 +126,7 @@ function BossService:TakeDamage(amount)
 		self.BossModel.Humanoid.Health = self.CurrentHealth
 	end
 	
-	self.Remotes.BossUpdate:FireAllClients(self.CurrentHealth, self.MaxHealth)
+	self.BossUpdate:FireAllClients(self.CurrentHealth, self.MaxHealth)
 	
 	if self.CurrentHealth <= 0 then
 		self:DefeatBoss()
@@ -132,7 +137,7 @@ function BossService:DefeatBoss()
 	self.State = "Defeated"
 	print("[BossService] Boss Defeated!")
 	
-	self.Remotes.BossDefeated:FireAllClients()
+	self.BossDefeated:FireAllClients()
 	
 	-- Cleanup
 	if self.BossModel then

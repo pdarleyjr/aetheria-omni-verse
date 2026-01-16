@@ -1,64 +1,79 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Remotes = {}
+local _events = {}
+local _functions = {}
 
 function Remotes.Init()
 	print("--- Initializing Remote Events ---")
 	
+	local folder = ReplicatedStorage:FindFirstChild("Remotes")
+	if not folder then
+		folder = Instance.new("Folder")
+		folder.Name = "Remotes"
+		folder.Parent = ReplicatedStorage
+	end
+	
 	local function createRemote(name, type)
-		local folder = ReplicatedStorage:FindFirstChild("Remotes")
-		if not folder then
-			folder = Instance.new("Folder")
-			folder.Name = "Remotes"
-			folder.Parent = ReplicatedStorage
-		end
-		
-		local path = string.split(name, "/")
-		local current = folder
-		
-		for i = 1, #path - 1 do
-			local sub = current:FindFirstChild(path[i])
-			if not sub then
-				sub = Instance.new("Folder")
-				sub.Name = path[i]
-				sub.Parent = current
-			end
-			current = sub
-		end
-		
-		local remoteName = path[#path]
-		local remote = current:FindFirstChild(remoteName)
-		
+		local remote = folder:FindFirstChild(name)
 		if not remote then
 			remote = Instance.new(type)
-			remote.Name = remoteName
-			remote.Parent = current
-			print("  Created Event: " .. name)
+			remote.Name = name
+			remote.Parent = folder
+			print("  Created " .. type .. ": " .. name)
 		end
-		
 		return remote
 	end
 
 	-- Combat Remotes
-	createRemote("Combat/RequestAttack", "RemoteEvent")
-	createRemote("Combat/HitConfirmed", "RemoteEvent")
-	createRemote("Combat/AbilityCast", "RemoteEvent")
+	_events["RequestAttack"] = createRemote("RequestAttack", "RemoteEvent")
+	_events["HitConfirmed"] = createRemote("HitConfirmed", "RemoteEvent")
+	_events["AbilityCast"] = createRemote("AbilityCast", "RemoteEvent")
+	_events["ShowDamage"] = createRemote("ShowDamage", "RemoteEvent")
+	_events["RequestSkill"] = createRemote("RequestSkill", "RemoteEvent")
 	
 	-- Data Remotes
-	createRemote("Data/DataChanged", "RemoteEvent")
-	createRemote("Data/GetData", "RemoteFunction")
+	_events["DataChanged"] = createRemote("DataChanged", "RemoteEvent")
+	_events["UpdateHUD"] = createRemote("UpdateHUD", "RemoteEvent")
+	_functions["GetData"] = createRemote("GetData", "RemoteFunction")
 	
 	-- Realm Remotes
-	createRemote("Realm/PlaceFurniture", "RemoteFunction")
-	createRemote("Realm/TeleportToRealm", "RemoteFunction")
+	_functions["PlaceFurniture"] = createRemote("PlaceFurniture", "RemoteFunction")
+	_functions["TeleportToRealm"] = createRemote("TeleportToRealm", "RemoteFunction")
+	_events["TeleportToHub"] = createRemote("TeleportToHub", "RemoteEvent")
 	
 	-- Boss Remotes
-	createRemote("Boss/BossSpawned", "RemoteEvent")
-	createRemote("Boss/BossUpdate", "RemoteEvent")
-	createRemote("Boss/BossAttack", "RemoteEvent")
-	createRemote("Boss/BossDefeated", "RemoteEvent")
+	_events["BossSpawned"] = createRemote("BossSpawned", "RemoteEvent")
+	_events["BossUpdate"] = createRemote("BossUpdate", "RemoteEvent")
+	_events["BossAttack"] = createRemote("BossAttack", "RemoteEvent")
+	_events["BossDefeated"] = createRemote("BossDefeated", "RemoteEvent")
+	_events["BosstUniqueId"] = createRemote("BosstUniqueId", "RemoteEvent")
 	
 	print("✓ All Remote Events created")
+end
+
+function Remotes.GetEvent(name)
+	if _events[name] then return _events[name] end
+	
+	local folder = ReplicatedStorage:WaitForChild("Remotes")
+	local remote = folder:WaitForChild(name)
+	if remote:IsA("RemoteEvent") then
+		_events[name] = remote
+		return remote
+	end
+	error("RemoteEvent not found: " .. name)
+end
+
+function Remotes.GetFunction(name)
+	if _functions[name] then return _functions[name] end
+	
+	local folder = ReplicatedStorage:WaitForChild("Remotes")
+	local remote = folder:WaitForChild(name)
+	if remote:IsA("RemoteFunction") then
+		_functions[name] = remote
+		return remote
+	end
+	error("RemoteFunction not found: " .. name)
 end
 
 return Remotes

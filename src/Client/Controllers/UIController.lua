@@ -41,6 +41,9 @@ function UIController:Init()
 	self.Player = Players.LocalPlayer
 	self.PlayerGui = self.Player:WaitForChild("PlayerGui")
 	
+	self.RequestSkill = Remotes.GetEvent("RequestSkill")
+	self.TeleportToHub = Remotes.GetEvent("TeleportToHub")
+	
 	-- Create main HUD
 	self:CreateHUD()
 	
@@ -211,8 +214,7 @@ function UIController:CreateMenuButtons(parent)
 	hubBtn.Parent = frame
 	
 	hubBtn.Activated:Connect(function()
-		local TeleportToHub = Remotes.GetEvent("TeleportToHub")
-		TeleportToHub:FireServer()
+		self.TeleportToHub:FireServer()
 	end)
 end
 
@@ -244,8 +246,8 @@ end
 
 function UIController:UseSkill(skillName)
 	local targetPos = self:GetMouseHitPosition()
-	local RequestSkill = Remotes.GetEvent("RequestSkill")
-	RequestSkill:FireServer(skillName, targetPos)
+	if not targetPos then return end
+	 self.RequestSkill:FireServer(skillName, targetPos)
 end
 
 function UIController:GetMouseHitPosition()
