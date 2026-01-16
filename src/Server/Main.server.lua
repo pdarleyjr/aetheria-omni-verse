@@ -37,6 +37,9 @@ end
 
 -- Remotes initialization
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+if Remotes.Init then
+	Remotes.Init()
+end
 
 local services = {}
 

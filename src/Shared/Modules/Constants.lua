@@ -122,6 +122,28 @@ Constants.ZONES = {
 	}
 }
 
+Constants.BOSSES = {
+	GlitchKing = {
+		Name = "The Glitch King",
+		Health = 50000,
+		Damage = 50,
+		Model = "GlitchKing", -- Placeholder for model name
+		Rewards = {
+			Essence = 500,
+			Aether = 50,
+			Exp = 1000
+		},
+		Phases = {
+			{ Threshold = 1.0, Name = "Normal" },
+			{ Threshold = 0.5, Name = "Enraged" }
+		},
+		Attacks = {
+			Spike = { Damage = 30, Range = 20, Cooldown = 5 },
+			Corruption = { Damage = 10, Range = 100, Cooldown = 8, Duration = 5 }
+		}
+	}
+}
+
 Constants.SKILLS = {
 	Fireball = {
 		Name = "Fireball",

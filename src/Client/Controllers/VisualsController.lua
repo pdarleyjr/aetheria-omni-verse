@@ -3,15 +3,46 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
 
 local VisualsController = {}
 
 function VisualsController:Init()
 	print("[VisualsController] Initializing...")
+	self.Remotes = ReplicatedStorage:WaitForChild("Remotes")
 end
 
 function VisualsController:Start()
 	print("[VisualsController] Starting...")
+	
+	local bossAttack = self.Remotes:WaitForChild("Boss"):WaitForChild("BossAttack")
+	bossAttack.OnClientEvent:Connect(function(attackName, duration)
+		if attackName == "Spike" then
+			self:ShakeCamera(duration or 0.5, 1)
+		end
+	end)
+end
+
+function VisualsController:ShakeCamera(duration, intensity)
+	local camera = Workspace.CurrentCamera
+	local startTime = os.clock()
+	
+	local connection
+	connection = RunService.RenderStepped:Connect(function()
+		local elapsed = os.clock() - startTime
+		if elapsed >= duration then
+			connection:Disconnect()
+			return
+		end
+		
+		local offset = Vector3.new(
+			math.random() - 0.5,
+			math.random() - 0.5,
+			math.random() - 0.5
+		) * intensity * (1 - elapsed/duration)
+		
+		camera.CFrame = camera.CFrame * CFrame.new(offset)
+	end)
 end
 
 function VisualsController:PlayHitEffect(position: Vector3, color: Color3?)
