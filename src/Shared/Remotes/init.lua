@@ -52,6 +52,11 @@ function Remotes.Init()
 	_events["BossDefeated"] = createRemote("BossDefeated", "RemoteEvent")
 	_events["BossUniqueId"] = createRemote("BossUniqueId", "RemoteEvent")
 	
+	-- Quest Remotes
+	_events["QuestUpdate"] = createRemote("QuestUpdate", "RemoteEvent")
+	_functions["AcceptQuest"] = createRemote("AcceptQuest", "RemoteFunction")
+	_functions["CompleteQuest"] = createRemote("CompleteQuest", "RemoteFunction")
+	
 	print("✓ All Remote Events created")
 end
 

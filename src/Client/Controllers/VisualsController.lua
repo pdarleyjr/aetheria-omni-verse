@@ -22,6 +22,36 @@ function VisualsController:Start()
 			self:ShakeCamera(duration or 0.5, 1)
 		end
 	end)
+	
+	-- Play Intro
+	self:PlayIntro()
+end
+
+function VisualsController:PlayIntro()
+	local camera = Workspace.CurrentCamera
+	local player = game.Players.LocalPlayer
+	
+	-- Wait for character
+	local character = player.Character or player.CharacterAdded:Wait()
+	local rootPart = character:WaitForChild("HumanoidRootPart")
+	
+	-- Cinematic Camera Sequence
+	camera.CameraType = Enum.CameraType.Scriptable
+	
+	-- Start high up
+	local startCFrame = CFrame.new(rootPart.Position + Vector3.new(0, 100, 100), rootPart.Position)
+	camera.CFrame = startCFrame
+	
+	-- Tween down to player
+	local tweenInfo = TweenInfo.new(4, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+	local goal = { CFrame = CFrame.new(rootPart.Position + Vector3.new(0, 10, 20), rootPart.Position) }
+	
+	local tween = TweenService:Create(camera, tweenInfo, goal)
+	tween:Play()
+	
+	tween.Completed:Connect(function()
+		camera.CameraType = Enum.CameraType.Custom
+	end)
 end
 
 function VisualsController:ShakeCamera(duration, intensity)

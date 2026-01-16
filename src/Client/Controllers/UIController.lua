@@ -39,7 +39,12 @@ local THEME = {
 
 function UIController:Init()
 	self.Player = Players.LocalPlayer
-	self.PlayerGui = self.Player:WaitForChild("PlayerGui")
+	self.PlayerGui = self.Player:WaitForChild("PlayerGui", 30)
+	
+	if not self.PlayerGui then
+		warn("[UIController] PlayerGui not found after 30 seconds!")
+		return
+	end
 	
 	self.RequestSkill = Remotes.GetEvent("RequestSkill")
 	self.TeleportToHub = Remotes.GetEvent("TeleportToHub")
@@ -162,8 +167,9 @@ function UIController:CreateHUD()
 end
 
 function UIController:CreateQuestTracker(parent)
-	local frame = self:CreateGlassPanel(UDim2.new(0, 220, 0, 120), UDim2.new(0, 20, 0, 350))
+	local frame = self:CreateGlassPanel(UDim2.new(0, 220, 0, 0), UDim2.new(0, 20, 0, 350)) -- Height 0 for AutomaticSize
 	frame.Name = "QuestTracker"
+	frame.AutomaticSize = Enum.AutomaticSize.Y
 	frame.Visible = false
 	frame.Parent = parent
 	self.QuestFrame = frame
@@ -183,7 +189,8 @@ function UIController:CreateQuestTracker(parent)
 	
 	local desc = Instance.new("TextLabel")
 	desc.Name = "Description"
-	desc.Size = UDim2.new(1, -20, 0, 40)
+	desc.Size = UDim2.new(1, -20, 0, 0) -- Height 0 for AutomaticSize
+	desc.AutomaticSize = Enum.AutomaticSize.Y
 	desc.Position = UDim2.new(0, 10, 0, 30)
 	desc.BackgroundTransparency = 1
 	desc.Text = "Quest Description goes here..."
@@ -198,11 +205,24 @@ function UIController:CreateQuestTracker(parent)
 	
 	local tasks = Instance.new("Frame")
 	tasks.Name = "Tasks"
-	tasks.Size = UDim2.new(1, -20, 0, 40)
-	tasks.Position = UDim2.new(0, 10, 0, 75)
+	tasks.Size = UDim2.new(1, -20, 0, 0) -- Height 0 for AutomaticSize
+	tasks.AutomaticSize = Enum.AutomaticSize.Y
+	tasks.Position = UDim2.new(0, 10, 0, 0) -- Position will be adjusted by UIListLayout if we used one for the main frame, but here we manually position.
+	-- Actually, let's use a UIListLayout for the main frame to make it easier.
 	tasks.BackgroundTransparency = 1
 	tasks.Parent = frame
 	self.QuestTasks = tasks
+	
+	-- Main Layout
+	local mainLayout = Instance.new("UIListLayout")
+	mainLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	mainLayout.Padding = UDim.new(0, 5)
+	mainLayout.Parent = frame
+	
+	-- Adjust LayoutOrders
+	title.LayoutOrder = 1
+	desc.LayoutOrder = 2
+	tasks.LayoutOrder = 3
 	
 	local layout = Instance.new("UIListLayout")
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -283,7 +303,7 @@ end
 function UIController:CreateActionButton(text, position, color)
 	local btn = Instance.new("TextButton")
 	btn.Size = UDim2.new(0, 80, 0, 80)
-	btn.Position = position
+(btn.Position = position
 	btn.AnchorPoint = Vector2.new(0.5, 0.5)
 	btn.BackgroundColor3 = color
 	btn.Text = text

@@ -25,7 +25,7 @@ function InventoryController:Init()
 	-- But UIController creates "MainHUD".
 	
 	task.spawn(function()
-		local hud = self.PlayerGui:WaitForChild("MainHUD", 10)
+		local hud = self.PlayerGui:WaitForChild("MainHUD") -- Removed timeout to prevent failure on slow load
 		if hud then
 			self:CreateInventoryUI(hud)
 		else

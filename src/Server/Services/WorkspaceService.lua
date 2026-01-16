@@ -1,6 +1,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
 
 local Constants = require(ReplicatedStorage.Shared.Modules.Constants)
 
@@ -8,11 +9,85 @@ local WorkspaceService = {}
 
 function WorkspaceService:Init()
 	print("[WorkspaceService] Initializing...")
+	self:SetupLighting()
 end
 
 function WorkspaceService:Start()
 	print("[WorkspaceService] Starting...")
 	self:GenerateGlitchSpikes()
+	self:GenerateDecor()
+end
+
+function WorkspaceService:SetupLighting()
+	Lighting.Ambient = Color3.fromRGB(50, 50, 70)
+	Lighting.OutdoorAmbient = Color3.fromRGB(30, 30, 50)
+	Lighting.Brightness = 2
+	Lighting.ClockTime = 14
+	Lighting.ShadowSoftness = 0.2
+	Lighting.GlobalShadows = true
+	
+	local atmosphere = Instance.new("Atmosphere")
+	atmosphere.Density = 0.3
+	atmosphere.Offset = 0.25
+	atmosphere.Color = Color3.fromRGB(150, 150, 200)
+	atmosphere.Decay = Color3.fromRGB(100, 100, 150)
+	atmosphere.Glare = 0.5
+	atmosphere.Haze = 1
+	atmosphere.Parent = Lighting
+	
+	local bloom = Instance.new("BloomEffect")
+	bloom.Intensity = 0.4
+	bloom.Size = 24
+	bloom.Threshold = 0.8
+	bloom.Parent = Lighting
+	
+	local blur = Instance.new("BlurEffect")
+	blur.Size = 2
+	blur.Parent = Lighting
+end
+
+function WorkspaceService:GenerateDecor()
+	local zone = Constants.ZONES["Glitch Wastes"]
+	if not zone then return end
+	
+	local decorFolder = Instance.new("Folder")
+	decorFolder.Name = "Decor"
+	decorFolder.Parent = Workspace
+	
+	local center = zone.Center
+	local size = zone.Size
+	
+	-- Generate some floating crystals
+	for i = 1, 15 do
+		local crystal = Instance.new("Part")
+		crystal.Name = "FloatingCrystal"
+		crystal.Size = Vector3.new(2, 4, 2)
+		crystal.Anchored = true
+		crystal.CanCollide = false
+		crystal.Color = Color3.fromRGB(100, 200, 255)
+		crystal.Material = Enum.Material.Neon
+		crystal.Shape = Enum.PartType.Cylinder
+		
+		local x = center.X + math.random(-size.X/2, size.X/2)
+		local z = center.Z + math.random(-size.Z/2, size.Z/2)
+		local y = center.Y + math.random(10, 30)
+		
+		crystal.Position = Vector3.new(x, y, z)
+		crystal.CFrame = CFrame.new(crystal.Position) * CFrame.Angles(math.random(), math.random(), math.random())
+		
+		crystal.Parent = decorFolder
+		
+		-- Simple floating animation
+		task.spawn(function()
+			local startY = y
+			while crystal.Parent do
+				local t = os.clock()
+				crystal.Position = Vector3.new(x, startY + math.sin(t) * 2, z)
+				crystal.CFrame = crystal.CFrame * CFrame.Angles(0, 0.01, 0)
+				task.wait(0.03)
+			end
+		end)
+	end
 end
 
 function WorkspaceService:GenerateGlitchSpikes()

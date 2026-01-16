@@ -169,15 +169,15 @@ function EnemyService:UpdateEnemies()
 	local now = os.clock()
 	
 	for _, enemy in ipairs(self.EnemyFolder:GetChildren()) do
+		if not enemy:IsA("Model") then continue end
+		
 		local humanoid = enemy:FindFirstChild("Humanoid")
 		local rootPart = enemy:FindFirstChild("HumanoidRootPart")
 		
-		if humanoid and rootPart then
-			if humanoid.Health <= 0 then
-				if not enemy:GetAttribute("Dead") then
-					enemy:SetAttribute("Dead", true)
-					self:HandleEnemyDeath(enemy)
-				end
+		if humanoid and rootPart and humanoid.Health > 0 then
+			-- Safety check: Ensure enemy isn't falling into void
+			if rootPart.Position.Y < -100 then
+				enemy:Destroy()
 				continue
 			end
 			
@@ -200,7 +200,7 @@ function EnemyService:UpdateEnemies()
 						if now - lastAttack > 1.5 then -- 1.5s cooldown
 							-- Deal damage to player
 							local targetHumanoid = target.Character:FindFirstChild("Humanoid")
-							if targetHumanoid then
+							if targetHumanoid and targetHumanoid.Health > 0 then
 								targetHumanoid:TakeDamage(10)
 								enemy:SetAttribute("LastAttack", now)
 								-- Optional: Play animation or sound here
@@ -209,6 +209,14 @@ function EnemyService:UpdateEnemies()
 					end
 				end
 			end
+		elseif humanoid and humanoid.Health <= 0 then
+			if not enemy:GetAttribute("Dead") then
+				enemy:SetAttribute("Dead", true)
+				self:HandleEnemyDeath(enemy)
+			end
+		else
+			-- Cleanup invalid enemies
+			enemy:Destroy()
 		end
 	end
 end
@@ -219,10 +227,13 @@ function EnemyService:FindNearestPlayer(position: Vector3): Player?
 	
 	for _, player in ipairs(Players:GetPlayers()) do
 		if player.Character and player.Character.PrimaryPart then
-			local distance = (player.Character.PrimaryPart.Position - position).Magnitude
-			if distance < minDistance then
-				minDistance = distance
-				nearestPlayer = player
+			local humanoid = player.Character:FindFirstChild("Humanoid")
+			if humanoid and humanoid.Health > 0 then
+				local distance = (player.Character.PrimaryPart.Position - position).Magnitude
+				if distance < minDistance then
+					minDistance = distance
+					nearestPlayer = player
+				end
 			end
 		end
 	end

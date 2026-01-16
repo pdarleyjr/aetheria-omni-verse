@@ -140,8 +140,67 @@ function RealmService:CreateRealmInstance(player: Player)
 	roof.Position = base.Position + Vector3.new(0, 10, 0)
 	roof.Color = Color3.fromRGB(160, 82, 45)
 	roof.Anchored = true
-	roof.Shape = Enum.PartType.Wedge -- Simple wedge roof? No, just a block for now or use a Mesh
+	roof.Shape = Enum.PartType.Block -- Changed to Block for simplicity, or use Wedge/CornerWedge for better roof
 	roof.Parent = house
+	
+	-- Add some walls (simplified)
+	local wall1 = Instance.new("Part")
+	wall1.Name = "Wall1"
+	wall1.Size = Vector3.new(20, 8, 1)
+	wall1.Position = floor.Position + Vector3.new(0, 4.5, 9.5)
+	wall1.Color = Color3.fromRGB(200, 180, 140)
+	wall1.Anchored = true
+	wall1.Parent = house
+	
+	local wall2 = wall1:Clone()
+	wall2.Name = "Wall2"
+	wall2.Position = floor.Position + Vector3.new(0, 4.5, -9.5)
+	wall2.Parent = house
+	
+	local wall3 = Instance.new("Part")
+	wall3.Name = "Wall3"
+	wall3.Size = Vector3.new(1, 8, 18) -- Leave space for door
+	wall3.Position = floor.Position + Vector3.new(9.5, 4.5, 0)
+	wall3.Color = Color3.fromRGB(200, 180, 140)
+	wall3.Anchored = true
+	wall3.Parent = house
+	
+	local wall4 = wall3:Clone()
+	wall4.Name = "Wall4"
+	wall4.Position = floor.Position + Vector3.new(-9.5, 4.5, 0)
+	wall4.Parent = house
+
+	-- Create Trees
+	for i = 1, 5 do
+		local tree = Instance.new("Model")
+		tree.Name = "Tree"
+		
+		local trunk = Instance.new("Part")
+		trunk.Name = "Trunk"
+		trunk.Size = Vector3.new(2, 8, 2)
+		trunk.Color = Color3.fromRGB(101, 67, 33)
+		trunk.Anchored = true
+		trunk.Parent = tree
+		
+		local leaves = Instance.new("Part")
+		leaves.Name = "Leaves"
+		leaves.Size = Vector3.new(6, 6, 6)
+		leaves.Color = Color3.fromRGB(34, 139, 34)
+		leaves.Anchored = true
+		leaves.Shape = Enum.PartType.Ball
+		leaves.Parent = tree
+		
+		-- Random position on base, avoiding house center
+		local angle = math.random() * math.pi * 2
+		local radius = math.random(15, 40)
+		local tx = base.Position.X + math.cos(angle) * radius
+		local tz = base.Position.Z + math.sin(angle) * radius
+		
+		trunk.Position = Vector3.new(tx, base.Position.Y + 4, tz)
+		leaves.Position = trunk.Position + Vector3.new(0, 6, 0)
+		
+		tree.Parent = realmModel
+	end
 	
 	-- Create Portal to Combat Zone
 	local portal = Instance.new("Part")
@@ -163,6 +222,22 @@ function RealmService:CreateRealmInstance(player: Player)
 			self:TeleportToCombatZone(player)
 		end
 	end)
+	
+	-- Create NPC (Guide)
+	local npc = Instance.new("Part")
+	npc.Name = "GuideNPC"
+	npc.Size = Vector3.new(2, 5, 2)
+	npc.Position = base.Position + Vector3.new(10, 3.5, 10)
+	npc.Color = Color3.fromRGB(255, 255, 0)
+	npc.Material = Enum.Material.Neon
+	npc.Anchored = true
+	npc.CanCollide = false
+	npc.Parent = realmModel
+	
+	local npcPrompt = Instance.new("ProximityPrompt")
+	npcPrompt.ObjectText = "Guide"
+	npcPrompt.ActionText = "Talk"
+	npcPrompt.Parent = npc
 	
 	-- Load items
 	if data.Realm and data.Realm.Items then
