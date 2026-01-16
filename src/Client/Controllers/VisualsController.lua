@@ -16,6 +16,8 @@ end
 function VisualsController:Start()
 	print("[VisualsController] Starting...")
 	
+	self:SetupLighting()
+	
 	local bossAttack = Remotes.GetEvent("BossAttack")
 	bossAttack.OnClientEvent:Connect(function(attackName, duration)
 		if attackName == "Spike" then
@@ -37,19 +39,63 @@ function VisualsController:Start()
 	end)
 end
 
+function VisualsController:SetupLighting()
+	local lighting = game:GetService("Lighting")
+	lighting.Ambient = Color3.fromRGB(30, 30, 40)
+	lighting.OutdoorAmbient = Color3.fromRGB(50, 50, 60)
+	lighting.Brightness = 2
+	lighting.ClockTime = 18 -- Sunset/Dusk
+	lighting.GlobalShadows = true
+	
+	-- Add Atmosphere
+	if not lighting:FindFirstChild("Atmosphere") then
+		local atmosphere = Instance.new("Atmosphere")
+		atmosphere.Density = 0.3
+		atmosphere.Offset = 0.25
+		atmosphere.Color = Color3.fromRGB(199, 170, 199)
+		atmosphere.Decay = Color3.fromRGB(106, 90, 106)
+		atmosphere.Glare = 0
+		atmosphere.Haze = 1
+		atmosphere.Parent = lighting
+	end
+	
+	-- Add Bloom
+	if not lighting:FindFirstChild("Bloom") then
+		local bloom = Instance.new("BloomEffect")
+		bloom.Name = "Bloom"
+		bloom.Intensity = 0.4
+		bloom.Size = 24
+		bloom.Threshold = 0.8
+		bloom.Parent = lighting
+	end
+	
+	-- Add SunRays
+	if not lighting:FindFirstChild("SunRays") then
+		local sunrays = Instance.new("SunRaysEffect")
+		sunrays.Name = "SunRays"
+		sunrays.Intensity = 0.05
+		sunrays.Parent = lighting
+	end
+end
+
 function VisualsController:PlayIntro()
 	local camera = Workspace.CurrentCamera
 	local player = game.Players.LocalPlayer
 	
-	-- Wait for character
-	local character = player.Character or player.CharacterAdded:Wait()
-	local rootPart = character:WaitForChild("HumanoidRootPart")
+	-- Wait for character safely
+	local character = player.Character
+	if not character then
+		character = player.CharacterAdded:Wait()
+	end
+	
+	local rootPart = character:WaitForChild("HumanoidRootPart", 10)
+	if not rootPart then return end -- Avoid hang if root part doesn't load
 	
 	-- Cinematic Camera Sequence
 	camera.CameraType = Enum.CameraType.Scriptable
 	
 	-- Start high up and far away
-	local startCFrame = CFrame.new(rootPart.Position + Vector3.new(0, 200, 200), rootPart.Position)
+	local startCFrame = CFrame.new(rootPart.Position + Vector3.new(100, 150, 100), rootPart.Position)
 	camera.CFrame = startCFrame
 	
 	-- Blur effect
@@ -57,17 +103,31 @@ function VisualsController:PlayIntro()
 	blur.Size = 24
 	blur.Parent = camera
 	
-	-- Tween down to player
-	local tweenInfo = TweenInfo.new(6, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
-	local goal = { CFrame = CFrame.new(rootPart.Position + Vector3.new(0, 10, 20), rootPart.Position) }
+	-- Tween 1: Pan around
+	local tweenInfo1 = TweenInfo.new(5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+	local goal1 = { CFrame = CFrame.new(rootPart.Position + Vector3.new(-50, 80, 50), rootPart.Position) }
+	local tween1 = TweenService:Create(camera, tweenInfo1, goal1)
 	
-	local tween = TweenService:Create(camera, tweenInfo, goal)
-	tween:Play()
+	-- Tween 2: Zoom in
+	local tweenInfo2 = TweenInfo.new(4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	local goal2 = { CFrame = CFrame.new(rootPart.Position + Vector3.new(0, 10, 15), rootPart.Position) }
+	local tween2 = TweenService:Create(camera, tweenInfo2, goal2)
 	
-	-- Fade out blur
-	TweenService:Create(blur, TweenInfo.new(5, Enum.EasingStyle.Linear), {Size = 0}):Play()
+	tween1:Play()
 	
-	tween.Completed:Connect(function()
+	-- Story Text Sequence
+	task.delay(1, function()
+		-- Ideally call UIController to show subtitles
+		-- For now, we'll just use the WelcomeText at the end
+	end)
+	
+	tween1.Completed:Connect(function()
+		tween2:Play()
+		-- Fade out blur
+		TweenService:Create(blur, TweenInfo.new(4, Enum.EasingStyle.Linear), {Size = 0}):Play()
+	end)
+	
+	tween2.Completed:Connect(function()
 		camera.CameraType = Enum.CameraType.Custom
 		blur:Destroy()
 		

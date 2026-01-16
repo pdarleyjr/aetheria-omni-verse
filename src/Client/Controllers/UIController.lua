@@ -118,6 +118,9 @@ function UIController:CreateHUD()
 	-- 1.95 Quest Tracker
 	self:CreateQuestTracker(screenGui)
 	
+	-- 1.98 Subtitles
+	self:CreateSubtitleFrame(screenGui)
+	
 	-- 2. Combat Controls (Bottom Right)
 	local combatFrame = Instance.new("Frame")
 	combatFrame.Name = "CombatControls"
@@ -229,6 +232,48 @@ function UIController:CreateQuestTracker(parent)
 	layout.Parent = tasks
 end
 
+function UIController:CreateSubtitleFrame(parent)
+	local frame = Instance.new("Frame")
+	frame.Name = "SubtitleFrame"
+	frame.Size = UDim2.new(1, 0, 0, 60)
+	frame.Position = UDim2.new(0, 0, 0.85, 0)
+	frame.BackgroundTransparency = 1
+	frame.Parent = parent
+	self.SubtitleFrame = frame
+	
+	local label = Instance.new("TextLabel")
+	label.Name = "Text"
+	label.Size = UDim2.new(0.6, 0, 1, 0)
+	label.Position = UDim2.new(0.2, 0, 0, 0)
+	label.BackgroundTransparency = 1
+	label.Text = ""
+	label.TextColor3 = Color3.fromRGB(255, 255, 255)
+	label.TextStrokeTransparency = 0
+	label.Font = Enum.Font.GothamMedium
+	label.TextSize = 22
+	label.TextWrapped = true
+	label.TextTransparency = 1
+	label.TextStrokeTransparency = 1
+	label.Parent = frame
+	self.SubtitleLabel = label
+end
+
+function UIController:ShowSubtitle(text, duration)
+	if not self.SubtitleLabel then return end
+	
+	self.SubtitleLabel.Text = text
+	
+	local t1 = TweenService:Create(self.SubtitleLabel, TweenInfo.new(0.5), {TextTransparency = 0, TextStrokeTransparency = 0})
+	t1:Play()
+	
+	task.delay(duration or 3, function()
+		if self.SubtitleLabel.Text == text then
+			local t2 = TweenService:Create(self.SubtitleLabel, TweenInfo.new(0.5), {TextTransparency = 1, TextStrokeTransparency = 1})
+			t2:Play()
+		end
+	end)
+end
+
 function UIController:UpdateQuestTracker(data)
 	if not self.QuestFrame then return end
 	
@@ -314,6 +359,15 @@ function UIController:CreateActionButton(text, position, color)
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(1, 0)
 	corner.Parent = btn
+	
+	-- Hover Effects
+	btn.MouseEnter:Connect(function()
+		TweenService:Create(btn, TweenInfo.new(0.2), {Size = UDim2.new(0, 88, 0, 88)}):Play()
+	end)
+	
+	btn.MouseLeave:Connect(function()
+		TweenService:Create(btn, TweenInfo.new(0.2), {Size = UDim2.new(0, 80, 0, 80)}):Play()
+	end)
 	
 	return btn
 end

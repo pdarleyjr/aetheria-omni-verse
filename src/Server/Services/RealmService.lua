@@ -125,57 +125,11 @@ function RealmService:CreateRealmInstance(player: Player)
 	realmModel.PrimaryPart = base
 	
 	-- Create House
-	local house = Instance.new("Model")
-	house.Name = "House"
-	house.Parent = realmModel
+	self:CreateHouse(realmModel, base.Position)
 	
-	-- Force load assets if they were real assets
-	-- ContentProvider:PreloadAsync({house}) 
+	-- Create Spire
+	self:CreateSpire(realmModel, base.Position + Vector3.new(-40, 0, 40) + Vector3.new(0, 5, 0))
 	
-	local floor = Instance.new("Part")
-	floor.Name = "Floor"
-	floor.Size = Vector3.new(20, 1, 20)
-	floor.Position = base.Position + Vector3.new(0, 1, 0)
-	floor.Color = Color3.fromRGB(139, 69, 19)
-	floor.Anchored = true
-	floor.Parent = house
-	
-	local roof = Instance.new("Part")
-	roof.Name = "Roof"
-	roof.Size = Vector3.new(22, 5, 22)
-	roof.Position = base.Position + Vector3.new(0, 10, 0)
-	roof.Color = Color3.fromRGB(160, 82, 45)
-	roof.Anchored = true
-	roof.Shape = Enum.PartType.Block -- Changed to Block for simplicity, or use Wedge/CornerWedge for better roof
-	roof.Parent = house
-	
-	-- Add some walls (simplified)
-	local wall1 = Instance.new("Part")
-	wall1.Name = "Wall1"
-	wall1.Size = Vector3.new(20, 8, 1)
-	wall1.Position = floor.Position + Vector3.new(0, 4.5, 9.5)
-	wall1.Color = Color3.fromRGB(200, 180, 140)
-	wall1.Anchored = true
-	wall1.Parent = house
-	
-	local wall2 = wall1:Clone()
-	wall2.Name = "Wall2"
-	wall2.Position = floor.Position + Vector3.new(0, 4.5, -9.5)
-	wall2.Parent = house
-	
-	local wall3 = Instance.new("Part")
-	wall3.Name = "Wall3"
-	wall3.Size = Vector3.new(1, 8, 18) -- Leave space for door
-	wall3.Position = floor.Position + Vector3.new(9.5, 4.5, 0)
-	wall3.Color = Color3.fromRGB(200, 180, 140)
-	wall3.Anchored = true
-	wall3.Parent = house
-	
-	local wall4 = wall3:Clone()
-	wall4.Name = "Wall4"
-	wall4.Position = floor.Position + Vector3.new(-9.5, 4.5, 0)
-	wall4.Parent = house
-
 	-- Create Trees
 	for i = 1, 5 do
 		local tree = Instance.new("Model")
@@ -237,7 +191,7 @@ function RealmService:CreateRealmInstance(player: Player)
 	npc.Color = Color3.fromRGB(255, 255, 0)
 	npc.Material = Enum.Material.Neon
 	npc.Anchored = true
-	npc.CanCollide = false
+	npc.CanCollide = true -- Changed to true so players don't walk through
 	npc.Parent = realmModel
 	
 	local npcPrompt = Instance.new("ProximityPrompt")
@@ -256,6 +210,87 @@ function RealmService:CreateRealmInstance(player: Player)
 	self.RealmInstances[player.UserId] = realmModel
 	
 	return realmModel
+end
+
+function RealmService:CreateHouse(parent: Model, centerPos: Vector3)
+	local house = Instance.new("Model")
+	house.Name = "House"
+	house.Parent = parent
+	
+	local floor = Instance.new("Part")
+	floor.Name = "Floor"
+	floor.Size = Vector3.new(20, 1, 20)
+	floor.Position = centerPos + Vector3.new(0, 1, 0)
+	floor.Color = Color3.fromRGB(139, 69, 19)
+	floor.Anchored = true
+	floor.Parent = house
+	
+	local roof = Instance.new("Part")
+	roof.Name = "Roof"
+	roof.Size = Vector3.new(22, 5, 22)
+	roof.Position = centerPos + Vector3.new(0, 10, 0)
+	roof.Color = Color3.fromRGB(160, 82, 45)
+	roof.Anchored = true
+	roof.Shape = Enum.PartType.Block
+	roof.Parent = house
+	
+	-- Walls
+	local wallSpecs = {
+		{Size = Vector3.new(20, 8, 1), Offset = Vector3.new(0, 4.5, 9.5)},
+		{Size = Vector3.new(20, 8, 1), Offset = Vector3.new(0, 4.5, -9.5)},
+		{Size = Vector3.new(1, 8, 18), Offset = Vector3.new(9.5, 4.5, 0)}, -- Doorway side
+		{Size = Vector3.new(1, 8, 20), Offset = Vector3.new(-9.5, 4.5, 0)},
+	}
+	
+	for i, spec in ipairs(wallSpecs) do
+		local wall = Instance.new("Part")
+		wall.Name = "Wall" .. i
+		wall.Size = spec.Size
+		wall.Position = floor.Position + spec.Offset
+		wall.Color = Color3.fromRGB(200, 180, 140)
+		wall.Anchored = true
+		wall.Parent = house
+	end
+end
+
+function RealmService:CreateSpire(parent: Model, position: Vector3)
+	local spireModel = Instance.new("Model")
+	spireModel.Name = "Spire"
+	
+	local base = Instance.new("Part")
+	base.Name = "SpireBase"
+	base.Size = Vector3.new(12, 30, 12)
+	base.Position = position + Vector3.new(0, 15, 0)
+	base.Color = Color3.fromRGB(40, 40, 50)
+	base.Material = Enum.Material.Slate
+	base.Anchored = true
+	base.Parent = spireModel
+	
+	local crystal = Instance.new("Part")
+	crystal.Name = "SpireCrystal"
+	crystal.Size = Vector3.new(6, 12, 6)
+	crystal.Position = base.Position + Vector3.new(0, 20, 0)
+	crystal.Color = Color3.fromRGB(0, 255, 255)
+	crystal.Material = Enum.Material.Neon
+	crystal.Anchored = true
+	crystal.Parent = spireModel
+	
+	-- Floating rings
+	for i = 1, 3 do
+		local ring = Instance.new("Part")
+		ring.Name = "Ring" .. i
+		ring.Size = Vector3.new(18 + (i*2), 1, 18 + (i*2))
+		ring.Position = crystal.Position
+		ring.Orientation = Vector3.new(math.random(0, 360), math.random(0, 360), math.random(0, 360))
+		ring.Color = Color3.fromRGB(100, 200, 255)
+		ring.Material = Enum.Material.Neon
+		ring.Transparency = 0.4
+		ring.Anchored = true
+		ring.CanCollide = false
+		ring.Parent = spireModel
+	end
+	
+	spireModel.Parent = parent
 end
 
 function RealmService:TeleportToCombatZone(player: Player)

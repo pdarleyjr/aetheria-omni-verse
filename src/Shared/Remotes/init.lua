@@ -45,6 +45,9 @@ function Remotes.Init()
 	-- Spirit Remotes
 	_events["EquipSpirit"] = createRemote("EquipSpirit", "RemoteEvent")
 	
+	-- Progression Remotes
+	_events["LevelUp"] = createRemote("LevelUp", "RemoteEvent")
+	
 	-- Boss Remotes
 	_events["BossSpawned"] = createRemote("BossSpawned", "RemoteEvent")
 	_events["BossUpdate"] = createRemote("BossUpdate", "RemoteEvent")
