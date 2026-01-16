@@ -249,6 +249,23 @@ function SpiritService:UpdateCharacterSpirit(player: Player, spirit: any)
 		light.Brightness = 1.5
 		light.Parent = model
 		
+		-- Add Particles
+		local particles = Instance.new("ParticleEmitter")
+		particles.Color = ColorSequence.new(color)
+		particles.Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.5),
+			NumberSequenceKeypoint.new(1, 0)
+		})
+		particles.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0),
+			NumberSequenceKeypoint.new(1, 1)
+		})
+		particles.Lifetime = NumberRange.new(0.5, 1)
+		particles.Rate = 20
+		particles.Speed = NumberRange.new(2, 4)
+		particles.SpreadAngle = Vector2.new(180, 180)
+		particles.Parent = model
+		
 		-- Add some "wings" or orbiting bits based on rarity
 		if spiritDef.Rarity == "Rare" or spiritDef.Rarity == "Epic" or spiritDef.Rarity == "Legendary" then
 			local orbit = Instance.new("Part")
@@ -287,6 +304,18 @@ function SpiritService:UpdateCharacterSpirit(player: Player, spirit: any)
 	weld.Part0 = head or character.PrimaryPart
 	weld.Part1 = model
 	weld.Parent = model
+	
+	-- Spawn Effect
+	local spawnFx = Instance.new("ParticleEmitter")
+	spawnFx.Color = ColorSequence.new(Color3.new(1, 1, 1))
+	spawnFx.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 2), NumberSequenceKeypoint.new(1, 0)})
+	spawnFx.Lifetime = NumberRange.new(0.5)
+	spawnFx.Rate = 100
+	spawnFx.Speed = NumberRange.new(5, 10)
+	spawnFx.SpreadAngle = Vector2.new(180, 180)
+	spawnFx.Parent = model
+	spawnFx:Emit(20)
+	task.delay(0.5, function() spawnFx:Destroy() end)
 	
 	print(`[SpiritService] Spawning spirit visual for {player.Name}: {spirit.Name}`)
 end

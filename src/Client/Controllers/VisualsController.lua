@@ -37,6 +37,89 @@ function VisualsController:Start()
 	task.delay(1, function()
 		self:PlayIntro()
 	end)
+	
+	-- Monitor for Spirit
+	local player = game.Players.LocalPlayer
+	player.CharacterAdded:Connect(function(char)
+		self:OnCharacterAdded(char)
+	end)
+	if player.Character then
+		self:OnCharacterAdded(player.Character)
+	end
+end
+
+function VisualsController:OnCharacterAdded(char)
+	char.ChildAdded:Connect(function(child)
+		if child.Name == "ActiveSpirit" then
+			self:LinkSpiritToPlayer(char, child)
+		end
+	end)
+	
+	local existingSpirit = char:FindFirstChild("ActiveSpirit")
+	if existingSpirit then
+		self:LinkSpiritToPlayer(char, existingSpirit)
+	end
+end
+
+function VisualsController:LinkSpiritToPlayer(char, spirit)
+	local root = char:WaitForChild("HumanoidRootPart", 5)
+	if not root then return end
+	
+	local att0 = Instance.new("Attachment")
+	att0.Name = "SpiritAtt0"
+	att0.Position = Vector3.new(0, 0, 0)
+	att0.Parent = root
+	
+	local att1 = Instance.new("Attachment")
+	att1.Name = "SpiritAtt1"
+	att1.Position = Vector3.new(0, 0, 0)
+	att1.Parent = spirit
+	
+	local beam = Instance.new("Beam")
+	beam.Attachment0 = att0
+	beam.Attachment1 = att1
+	beam.Color = ColorSequence.new(spirit.Color)
+	beam.FaceCamera = true
+	beam.Width0 = 0.2
+	beam.Width1 = 0.2
+	beam.Texture = "rbxassetid://446111271" -- Simple beam texture
+	beam.TextureSpeed = 1
+	beam.Transparency = NumberSequence.new(0.5)
+	beam.Parent = spirit
+end
+
+function VisualsController:PlayBeamAttack(origin, target, color)
+	local terrain = Workspace.Terrain
+	
+	local att0 = Instance.new("Attachment")
+	att0.WorldPosition = origin
+	att0.Parent = terrain
+	
+	local att1 = Instance.new("Attachment")
+	att1.WorldPosition = target
+	att1.Parent = terrain
+	
+	local beam = Instance.new("Beam")
+	beam.Attachment0 = att0
+	beam.Attachment1 = att1
+	beam.Color = ColorSequence.new(color or Color3.new(1, 1, 1))
+	beam.Width0 = 0.5
+	beam.Width1 = 0.5
+	beam.FaceCamera = true
+	beam.Texture = "rbxassetid://446111271"
+	beam.TextureSpeed = 2
+	beam.TextureLength = 1
+	beam.LightEmission = 1
+	beam.LightInfluence = 0
+	beam.Parent = terrain
+	
+	Debris:AddItem(att0, 0.5)
+	Debris:AddItem(att1, 0.5)
+	Debris:AddItem(beam, 0.5)
+	
+	-- Tween width out
+	local tween = TweenService:Create(beam, TweenInfo.new(0.5), {Width0 = 0, Width1 = 0})
+	tween:Play()
 end
 
 function VisualsController:SetupLighting()

@@ -121,6 +121,9 @@ function UIController:CreateHUD()
 	-- 1.98 Subtitles
 	self:CreateSubtitleFrame(screenGui)
 	
+	-- 1.99 Dialogue Frame
+	self:CreateDialogueFrame(screenGui)
+	
 	-- 2. Combat Controls (Bottom Right)
 	local combatFrame = Instance.new("Frame")
 	combatFrame.Name = "CombatControls"
@@ -230,6 +233,106 @@ function UIController:CreateQuestTracker(parent)
 	local layout = Instance.new("UIListLayout")
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = tasks
+end
+
+function UIController:CreateDialogueFrame(parent)
+	local frame = self:CreateGlassPanel(UDim2.new(0.8, 0, 0, 150), UDim2.new(0.1, 0, 0.75, 0))
+	frame.Name = "DialogueFrame"
+	frame.Visible = false
+	frame.Parent = parent
+	self.DialogueFrame = frame
+	
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Name = "NameLabel"
+	nameLabel.Size = UDim2.new(0, 200, 0, 30)
+	nameLabel.Position = UDim2.new(0, 20, 0, -15)
+	nameLabel.BackgroundColor3 = THEME.ACCENT_COLOR
+	nameLabel.Text = "NAME"
+	nameLabel.TextColor3 = Color3.new(1, 1, 1)
+	nameLabel.Font = THEME.FONT
+	nameLabel.TextSize = 18
+	nameLabel.Parent = frame
+	
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = nameLabel
+	self.DialogueName = nameLabel
+	
+	local textLabel = Instance.new("TextLabel")
+	textLabel.Name = "TextLabel"
+	textLabel.Size = UDim2.new(1, -40, 1, -40)
+	textLabel.Position = UDim2.new(0, 20, 0, 20)
+	textLabel.BackgroundTransparency = 1
+	textLabel.Text = "Dialogue text goes here..."
+	textLabel.TextColor3 = THEME.TEXT_COLOR
+	textLabel.Font = Enum.Font.Gotham
+	textLabel.TextSize = 20
+	textLabel.TextWrapped = true
+	textLabel.TextXAlignment = Enum.TextXAlignment.Left
+	textLabel.TextYAlignment = Enum.TextYAlignment.Top
+	textLabel.Parent = frame
+	self.DialogueText = textLabel
+	
+	-- Continue indicator
+	local continueLabel = Instance.new("TextLabel")
+	continueLabel.Size = UDim2.new(0, 100, 0, 20)
+	continueLabel.Position = UDim2.new(1, -120, 1, -25)
+	continueLabel.BackgroundTransparency = 1
+	continueLabel.Text = "Click to continue..."
+	continueLabel.TextColor3 = Color3.new(0.7, 0.7, 0.7)
+	continueLabel.Font = Enum.Font.Gotham
+	continueLabel.TextSize = 14
+	continueLabel.Parent = frame
+	
+	-- Click handler
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(1, 0, 1, 0)
+	btn.BackgroundTransparency = 1
+	btn.Text = ""
+	btn.Parent = frame
+	
+	btn.Activated:Connect(function()
+		if self.DialogueCallback then
+			self.DialogueCallback()
+		end
+	end)
+end
+
+function UIController:ShowDialogue(name, text, callback)
+	if not self.DialogueFrame then return end
+	
+	self.DialogueName.Text = name
+	self.DialogueText.Text = text
+	self.DialogueFrame.Visible = true
+	self.DialogueCallback = callback
+	
+	-- Typewriter effect
+	self.DialogueText.MaxVisibleGraphemes = 0
+	local len = string.len(text)
+	for i = 1, len do
+		self.DialogueText.MaxVisibleGraphemes = i
+		task.wait(0.02)
+	end
+end
+
+function UIController:PlayDialogueSequence(sequence)
+	-- sequence is array of {Name = "X", Text = "Y"}
+	local index = 1
+	
+	local function showNext()
+		if index > #sequence then
+			self.DialogueFrame.Visible = false
+			self.DialogueCallback = nil
+			return
+		end
+		
+		local data = sequence[index]
+		index += 1
+		
+		self:ShowDialogue(data.Name, data.Text, showNext)
+	end
+	
+	showNext()
 end
 
 function UIController:CreateSubtitleFrame(parent)

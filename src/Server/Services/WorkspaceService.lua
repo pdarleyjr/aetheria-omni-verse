@@ -27,6 +27,22 @@ function WorkspaceService:SetupLighting()
 	Lighting.ShadowSoftness = 0.2
 	Lighting.GlobalShadows = true
 	
+	-- Skybox
+	local sky = Instance.new("Sky")
+	sky.Name = "FantasySky"
+	sky.SkyboxBk = "rbxassetid://6444884337"
+	sky.SkyboxDn = "rbxassetid://6444884785"
+	sky.SkyboxFt = "rbxassetid://6444884337"
+	sky.SkyboxLf = "rbxassetid://6444884337"
+	sky.SkyboxRt = "rbxassetid://6444884337"
+	sky.SkyboxUp = "rbxassetid://6412503613"
+	sky.SunTextureId = "rbxassetid://6196665106"
+	sky.SunAngularSize = 11
+	sky.MoonTextureId = "rbxassetid://6444884337"
+	sky.MoonAngularSize = 11
+	sky.StarCount = 3000
+	sky.Parent = Lighting
+	
 	local atmosphere = Instance.new("Atmosphere")
 	atmosphere.Density = 0.3
 	atmosphere.Offset = 0.25
@@ -58,6 +74,28 @@ function WorkspaceService:GenerateHubDecor()
 	hubFolder.Name = "HubDecor"
 	hubFolder.Parent = Workspace
 	
+	-- Spawn Location
+	local spawnLocation = Instance.new("SpawnLocation")
+	spawnLocation.Name = "HubSpawn"
+	spawnLocation.Size = Vector3.new(12, 1, 12)
+	spawnLocation.Position = Vector3.new(0, 1, 0)
+	spawnLocation.Anchored = true
+	spawnLocation.CanCollide = false
+	spawnLocation.Transparency = 1
+	spawnLocation.Duration = 0
+	spawnLocation.Parent = hubFolder
+	
+	-- Visual Spawn Pad
+	local spawnPad = Instance.new("Part")
+	spawnPad.Name = "SpawnVisual"
+	spawnPad.Size = Vector3.new(12, 0.5, 12)
+	spawnPad.Position = Vector3.new(0, 0.25, 0)
+	spawnPad.Anchored = true
+	spawnPad.Material = Enum.Material.Neon
+	spawnPad.Color = Color3.fromRGB(100, 200, 255)
+	spawnPad.Shape = Enum.PartType.Cylinder
+	spawnPad.Parent = hubFolder
+
 	-- Central Plaza
 	local plaza = Instance.new("Part")
 	plaza.Name = "PlazaFloor"
