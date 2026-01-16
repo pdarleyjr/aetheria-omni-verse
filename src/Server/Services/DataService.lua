@@ -94,6 +94,18 @@ function DataService.AddCurrency(player: Player, currency: string, amount: numbe
 	return false
 end
 
+function DataService.RemoveCurrency(player: Player, currency: string, amount: number)
+	local data = DataService.GetData(player)
+	if data and data.Currencies and data.Currencies[currency] ~= nil then
+		if data.Currencies[currency] >= amount then
+			data.Currencies[currency] = data.Currencies[currency] - amount
+			DataService.UpdateClientHUD(player)
+			return true
+		end
+	end
+	return false
+end
+
 function DataService.AddEssence(player: Player, amount: number)
 	return DataService.AddCurrency(player, "Essence", amount)
 end

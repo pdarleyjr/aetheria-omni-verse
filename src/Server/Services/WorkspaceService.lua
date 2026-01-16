@@ -46,7 +46,11 @@ function WorkspaceService:TeleportToHub(player)
 end
 
 function WorkspaceService:CreateSpawnHub()
-	local spawnLocation = Workspace:FindFirstChild("SpawnLocation")
+	local folder = Workspace:FindFirstChild("SpawnHub") or Instance.new("Folder")
+	folder.Name = "SpawnHub"
+	folder.Parent = Workspace
+
+	local spawnLocation = folder:FindFirstChild("SpawnLocation")
 	if not spawnLocation then
 		local part = Instance.new("Part")
 		part.Name = "SpawnLocation"
@@ -55,7 +59,7 @@ function WorkspaceService:CreateSpawnHub()
 		part.Anchored = true
 		part.Material = Enum.Material.SmoothPlastic
 		part.Color = Color3.fromRGB(50, 50, 60)
-		part.Parent = Workspace
+		part.Parent = folder
 		
 		local spawn = Instance.new("SpawnLocation")
 		spawn.Size = Vector3.new(12, 1, 12)
@@ -63,7 +67,7 @@ function WorkspaceService:CreateSpawnHub()
 		spawn.Anchored = true
 		spawn.Transparency = 1
 		spawn.CanCollide = false
-		spawn.Parent = Workspace
+		spawn.Parent = folder
 	end
 	
 	-- Welcome Sign
@@ -73,7 +77,7 @@ function WorkspaceService:CreateSpawnHub()
 	sign.Position = Vector3.new(0, 10, -60)
 	sign.Anchored = true
 	sign.Color = Color3.fromRGB(20, 20, 20)
-	sign.Parent = Workspace
+	sign.Parent = folder
 	
 	local sg = Instance.new("SurfaceGui")
 	sg.Face = Enum.NormalId.Front
@@ -90,12 +94,16 @@ function WorkspaceService:CreateSpawnHub()
 end
 
 function WorkspaceService:SpawnPortals()
+	local folder = Workspace:FindFirstChild("Portals") or Instance.new("Folder")
+	folder.Name = "Portals"
+	folder.Parent = Workspace
+
 	for _, biome in ipairs(Constants.BIOMES) do
-		self:CreatePortal(biome)
+		self:CreatePortal(biome, folder)
 	end
 end
 
-function WorkspaceService:CreatePortal(biomeData)
+function WorkspaceService:CreatePortal(biomeData, parent)
 	local portal = Instance.new("Part")
 	portal.Name = biomeData.Name .. "Portal"
 	portal.Size = Vector3.new(8, 12, 2)
@@ -103,7 +111,7 @@ function WorkspaceService:CreatePortal(biomeData)
 	portal.Anchored = true
 	portal.Color = biomeData.Color
 	portal.Material = Enum.Material.Neon
-	portal.Parent = Workspace
+	portal.Parent = parent
 	
 	-- Add a label
 	local sg = Instance.new("SurfaceGui")

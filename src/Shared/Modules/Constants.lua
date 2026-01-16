@@ -122,6 +122,27 @@ Constants.ZONES = {
 	}
 }
 
+Constants.SKILLS = {
+	Fireball = {
+		Name = "Fireball",
+		Description = "Launch a ball of fire that explodes on impact.",
+		Damage = 25,
+		Cooldown = 5,
+		Speed = 80,
+		Range = 100,
+		Cost = 10, -- Essence cost
+		Radius = 10,
+	},
+	Dash = {
+		Name = "Dash",
+		Description = "Quickly dash forward to evade attacks.",
+		Distance = 30,
+		Cooldown = 3,
+		Cost = 15, -- Essence cost
+		Duration = 0.2,
+	}
+}
+
 Constants.COMBAT = {
 	MAX_DISTANCE = 10,
 	COOLDOWN = 0.5,

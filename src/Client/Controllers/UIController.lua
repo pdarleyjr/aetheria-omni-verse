@@ -95,10 +95,18 @@ function UIController:CreateHUD()
 	ability1Btn.Size = UDim2.new(0, 60, 0, 60)
 	ability1Btn.Parent = combatFrame
 	
+	ability1Btn.Activated:Connect(function()
+		self:UseSkill("Fireball")
+	end)
+	
 	-- Ability 2
 	local ability2Btn = self:CreateActionButton("2", UDim2.new(1, 0, 0.5, 0), THEME.ACCENT_COLOR)
 	ability2Btn.Size = UDim2.new(0, 60, 0, 60)
 	ability2Btn.Parent = combatFrame
+	
+	ability2Btn.Activated:Connect(function()
+		self:UseSkill("Dash")
+	end)
 	
 	-- Bind Actions
 	attackBtn.Activated:Connect(function()
@@ -110,6 +118,10 @@ function UIController:CreateHUD()
 		if processed then return end
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.KeyCode == Enum.KeyCode.Space then
 			self:OnAttackPressed()
+		elseif input.KeyCode == Enum.KeyCode.One then
+			self:UseSkill("Fireball")
+		elseif input.KeyCode == Enum.KeyCode.Two then
+			self:UseSkill("Dash")
 		end
 	end)
 end
@@ -228,6 +240,32 @@ function UIController:OnAttackPressed()
 		local target = self:GetRaycastTarget()
 		CombatController:AttemptAttack(target)
 	end
+end
+
+function UIController:UseSkill(skillName)
+	local targetPos = self:GetMouseHitPosition()
+	local RequestSkill = Remotes.GetEvent("RequestSkill")
+	RequestSkill:FireServer(skillName, targetPos)
+end
+
+function UIController:GetMouseHitPosition()
+	local camera = Workspace.CurrentCamera
+	if not camera then return nil end
+
+	local viewportSize = camera.ViewportSize
+	local unitRay = camera:ViewportPointToRay(viewportSize.X / 2, viewportSize.Y / 2)
+	
+	local raycastParams = RaycastParams.new()
+	if self.Player.Character then
+		raycastParams.FilterDescendantsInstances = {self.Player.Character}
+	end
+	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+
+	local result = Workspace:Raycast(unitRay.Origin, unitRay.Direction * 100, raycastParams)
+	if result then
+		return result.Position
+	end
+	return unitRay.Origin + (unitRay.Direction * 100)
 end
 
 function UIController:GetRaycastTarget()
