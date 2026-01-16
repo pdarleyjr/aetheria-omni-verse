@@ -24,8 +24,10 @@ function WorkspaceService:SetupLighting()
 end
 
 function WorkspaceService:TeleportToHub(player)
-	if player.Character then
-		player.Character:PivotTo(CFrame.new(0, 5, 0))
+	if not player or not player.Character then return end
+	local root = player.Character:FindFirstChild("HumanoidRootPart")
+	if root then
+		root.CFrame = CFrame.new(0, 5, 0)
 	end
 end
 
@@ -39,8 +41,70 @@ function WorkspaceService:Start()
 	self:GenerateGlitchSpikes()
 	self:GenerateDecor()
 	self:GenerateHubDecor()
+	self:SpawnWilds()
+	self:SpawnThrone()
 	self:SpawnAzureSea()
 	self:GeneratePortals()
+end
+
+function WorkspaceService:SpawnWilds()
+	local wildsFolder = Instance.new("Folder")
+	wildsFolder.Name = "WildsDecor"
+	wildsFolder.Parent = Workspace
+
+	-- Gate at (0, 5, 100)
+	local leftPillar = Instance.new("Part")
+	leftPillar.Name = "GatePillarLeft"
+	leftPillar.Size = Vector3.new(4, 20, 4)
+	leftPillar.Position = Vector3.new(-10, 10, 100)
+	leftPillar.Anchored = true
+	leftPillar.Color = Color3.new(0, 0, 0)
+	leftPillar.Material = Enum.Material.Slate
+	leftPillar.Parent = wildsFolder
+
+	local rightPillar = leftPillar:Clone()
+	rightPillar.Name = "GatePillarRight"
+	rightPillar.Position = Vector3.new(10, 10, 100)
+	rightPillar.Parent = wildsFolder
+	
+	print("[WorkspaceService] Generated Wilds Gate")
+end
+
+function WorkspaceService:SpawnThrone()
+	local throneFolder = Instance.new("Folder")
+	throneFolder.Name = "ThroneDecor"
+	throneFolder.Parent = Workspace
+
+	-- Warning Sign at (0, 5, 400)
+	local signPost = Instance.new("Part")
+	signPost.Name = "WarningSign"
+	signPost.Size = Vector3.new(1, 10, 1)
+	signPost.Position = Vector3.new(0, 5, 400)
+	signPost.Anchored = true
+	signPost.Color = Color3.fromRGB(139, 69, 19)
+	signPost.Parent = throneFolder
+
+	local signBoard = Instance.new("Part")
+	signBoard.Name = "Board"
+	signBoard.Size = Vector3.new(8, 4, 1)
+	signBoard.Position = Vector3.new(0, 9, 400)
+	signBoard.Anchored = true
+	signBoard.Color = Color3.fromRGB(200, 0, 0)
+	signBoard.Parent = throneFolder
+	
+	local surfaceGui = Instance.new("SurfaceGui")
+	surfaceGui.Face = Enum.NormalId.Front
+	surfaceGui.Parent = signBoard
+	
+	local textLabel = Instance.new("TextLabel")
+	textLabel.Size = UDim2.new(1, 0, 1, 0)
+	textLabel.BackgroundTransparency = 1
+	textLabel.Text = "DANGER: THRONE AHEAD"
+	textLabel.TextColor3 = Color3.new(1, 1, 1)
+	textLabel.TextScaled = true
+	textLabel.Parent = surfaceGui
+
+	print("[WorkspaceService] Generated Throne Warning")
 end
 
 function WorkspaceService:SpawnAzureSea()
@@ -105,7 +169,7 @@ function WorkspaceService:GenerateHubDecor()
 	local spawnLocation = Instance.new("SpawnLocation")
 	spawnLocation.Name = "HubSpawn"
 	spawnLocation.Size = Vector3.new(12, 1, 12)
-	spawnLocation.Position = Vector3.new(0, 1, 0)
+	spawnLocation.Position = Vector3.new(0, 5, 0)
 	spawnLocation.Anchored = true
 	spawnLocation.CanCollide = false
 	spawnLocation.Transparency = 1
@@ -116,7 +180,7 @@ function WorkspaceService:GenerateHubDecor()
 	local spawnPad = Instance.new("Part")
 	spawnPad.Name = "SpawnVisual"
 	spawnPad.Size = Vector3.new(12, 0.5, 12)
-	spawnPad.Position = Vector3.new(0, 0.25, 0)
+	spawnPad.Position = Vector3.new(0, 4.25, 0)
 	spawnPad.Anchored = true
 	spawnPad.Material = Enum.Material.Neon
 	spawnPad.Color = Color3.fromRGB(100, 200, 255)
@@ -127,7 +191,7 @@ function WorkspaceService:GenerateHubDecor()
 	local plaza = Instance.new("Part")
 	plaza.Name = "PlazaFloor"
 	plaza.Size = Vector3.new(100, 1, 100)
-	plaza.Position = Vector3.new(0, 0, 0)
+	plaza.Position = Vector3.new(0, 4, 0)
 	plaza.Anchored = true
 	plaza.Material = Enum.Material.SmoothPlastic
 	plaza.Color = Color3.fromRGB(200, 200, 220)
@@ -143,7 +207,7 @@ function WorkspaceService:GenerateHubDecor()
 		local pillar = Instance.new("Part")
 		pillar.Name = "HubPillar"
 		pillar.Size = Vector3.new(4, 20, 4)
-		pillar.Position = Vector3.new(x, 10, z)
+		pillar.Position = Vector3.new(x, 14, z)
 		pillar.Anchored = true
 		pillar.Material = Enum.Material.Marble
 		pillar.Color = Color3.fromRGB(240, 240, 255)
@@ -177,11 +241,14 @@ function WorkspaceService:GeneratePortals()
 	local azureZone = Constants.ZONES["Azure Sea"]
 	if azureZone then
 		-- Hub -> Azure Sea
-		self:CreatePortal(portalsFolder, "ToAzureSea", Vector3.new(20, 5, 20), azureZone.Center + Vector3.new(0, 10, 0), Color3.fromRGB(0, 150, 255), "TRAVEL TO AZURE SEA")
+		self:CreatePortal(portalsFolder, "ToAzureSea", Vector3.new(20, 2, 20), azureZone.Center + Vector3.new(0, 10, 0), Color3.fromRGB(0, 150, 255), "TRAVEL TO AZURE SEA")
 		
 		-- Azure Sea -> Hub
 		self:CreatePortal(portalsFolder, "ToHubFromSea", azureZone.Center + Vector3.new(0, 10, 0), Vector3.new(0, 5, 0), Color3.fromRGB(100, 200, 255), "RETURN TO HUB")
 	end
+
+	-- Hub -> Realm
+	self:CreatePortal(portalsFolder, "ToRealm", Vector3.new(-20, 2, 20), Vector3.new(0, 500, 0), Color3.fromRGB(255, 215, 0), "TRAVEL TO REALM")
 end
 
 function WorkspaceService:CreatePortal(parent, name, position, targetPos, color, labelText)

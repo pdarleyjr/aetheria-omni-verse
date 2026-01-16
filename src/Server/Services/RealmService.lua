@@ -90,15 +90,15 @@ function RealmService:OnPlayerAdded(player: Player)
 	-- Teleport when character spawns
 	player.CharacterAdded:Connect(function(character)
 		-- Wait a brief moment for physics to initialize
-		task.wait(1) -- Increased wait time for stability
-		self:TeleportToRealm(player, player.UserId)
+		-- task.wait(1) -- Increased wait time for stability
+		-- self:TeleportToRealm(player, player.UserId)
 	end)
 	
 	-- Teleport if character already exists
 	if player.Character then
 		task.spawn(function()
-			task.wait(1) -- Increased wait time for stability
-			self:TeleportToRealm(player, player.UserId)
+			-- task.wait(1) -- Increased wait time for stability
+			-- self:TeleportToRealm(player, player.UserId)
 		end)
 	end
 end

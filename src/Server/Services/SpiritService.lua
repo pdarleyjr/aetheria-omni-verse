@@ -15,7 +15,7 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 -- So inside Init/Start, we can access it.
 
 local SpiritService = {}
-local WorkspaceService -- loaded in Init
+local WorkspaceService = require(script.Parent.WorkspaceService)
 
 function SpiritService:Init()
 	print("[SpiritService] Init called")
@@ -66,8 +66,10 @@ function SpiritService:OnPlayerAdded(player: Player)
 	self:CheckStarterSpirit(player, data)
 	
 	-- Force Hub Spawn
-	task.delay(1, function()
-		WorkspaceService.TeleportToHub(player)
+	task.delay(2, function()
+		if player and player.Parent then -- Check if player is still in game
+			WorkspaceService.TeleportToHub(player)
+		end
 	end)
 end
 

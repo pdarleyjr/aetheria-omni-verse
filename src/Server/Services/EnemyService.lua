@@ -39,14 +39,14 @@ function EnemyService:Start()
 			end
 
 			if enemyCount < 10 then
-				-- Spawn in Glitch Wastes
+				-- Spawn in Glitch Wastes (The Wilds: Z 150-350)
 				local zone = Constants.ZONES["Glitch Wastes"]
 				if zone then
 					local center = zone.Center
 					local size = zone.Size
 					
 					local x = center.X + math.random(-size.X/2, size.X/2)
-					local z = center.Z + math.random(-size.Z/2, size.Z/2)
+					local z = math.random(150, 350)
 					local spawnPos = Vector3.new(x, center.Y + 5, z)
 					
 					self:SpawnEnemy("Glitch Slime", spawnPos)
@@ -65,8 +65,8 @@ function EnemyService:Start()
 			if not bossExists then
 				local zone = Constants.ZONES["Glitch Wastes"]
 				if zone then
-					-- Spawn boss at specific position
-					self:SpawnBoss("Glitch King", Vector3.new(0, 15, 300))
+					-- Spawn boss at specific position (The Throne: Z=500)
+					self:SpawnBoss("Glitch King", Vector3.new(0, 15, 500))
 				end
 			end
 			
@@ -246,8 +246,8 @@ function EnemyService:UpdateEnemies()
 		local rootPart = enemy:FindFirstChild("HumanoidRootPart")
 		
 		if humanoid and rootPart and humanoid.Health > 0 then
-			-- Safety check: Ensure enemy isn't falling into void
-			if rootPart.Position.Y < -100 then
+			-- Safety check: Ensure enemy isn't falling into void or in Hub
+			if rootPart.Position.Y < -100 or rootPart.Position.Z < 100 then
 				enemy:Destroy()
 				continue
 			end
