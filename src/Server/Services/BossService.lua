@@ -20,6 +20,10 @@ function BossService:Init()
 	self.BossUpdate = Remotes.GetEvent("BossUpdate")
 	self.BossAttack = Remotes.GetEvent("BossAttack")
 	self.BossDefeated = Remotes.GetEvent("BossDefeated")
+	
+	Players.PlayerAdded:Connect(function(player)
+		self:OnPlayerAdded(player)
+	end)
 end
 
 function BossService:Start()
@@ -34,6 +38,20 @@ function BossService:Start()
 	RunService.Heartbeat:Connect(function(dt)
 		self:Update(dt)
 	end)
+end
+
+function BossService:OnPlayerAdded(player)
+	if self.State == "Active" and self.BossModel then
+		local bossData = Constants.BOSSES[self.BossId]
+		if bossData then
+			self.BossSpawned:FireClient(player, {
+				Name = bossData.Name,
+				MaxHealth = self.MaxHealth,
+				Model = self.BossModel
+			})
+			self.BossUpdate:FireClient(player, self.CurrentHealth, self.MaxHealth)
+		end
+	end
 end
 
 function BossService:SpawnBoss(bossId)

@@ -44,6 +44,23 @@ function UIController:Init()
 	self.RequestSkill = Remotes.GetEvent("RequestSkill")
 	self.TeleportToHub = Remotes.GetEvent("TeleportToHub")
 	
+	-- Boss Events
+	local BossSpawned = Remotes.GetEvent("BossSpawned")
+	local BossUpdate = Remotes.GetEvent("BossUpdate")
+	local BossDefeated = Remotes.GetEvent("BossDefeated")
+	
+	BossSpawned.OnClientEvent:Connect(function(data)
+		self:ShowBossBar(data)
+	end)
+	
+	BossUpdate.OnClientEvent:Connect(function(current, max)
+		self:UpdateBossBar(current, max)
+	end)
+	
+	BossDefeated.OnClientEvent:Connect(function()
+		self:HideBossBar()
+	end)
+	
 	-- Create main HUD
 	self:CreateHUD()
 	
@@ -80,6 +97,9 @@ function UIController:CreateHUD()
 	
 	-- 1.5 Menu Buttons (Left Side)
 	self:CreateMenuButtons(screenGui)
+	
+	-- 1.8 Boss Bar (Hidden by default)
+	self:CreateBossBar(screenGui)
 
 	-- 2. Combat Controls (Bottom Right)
 	local combatFrame = Instance.new("Frame")
@@ -216,6 +236,73 @@ function UIController:CreateMenuButtons(parent)
 	hubBtn.Activated:Connect(function()
 		self.TeleportToHub:FireServer()
 	end)
+end
+
+function UIController:CreateBossBar(parent)
+	local frame = Instance.new("Frame")
+	frame.Name = "BossHealthBar"
+	frame.Size = UDim2.new(0, 400, 0, 20)
+	frame.Position = UDim2.new(0.5, -200, 0, 50)
+	frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	frame.BorderSizePixel = 0
+	frame.Visible = false
+	frame.Parent = parent
+	self.BossBarFrame = frame
+	
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 4)
+	corner.Parent = frame
+	
+	local fill = Instance.new("Frame")
+	fill.Name = "Fill"
+	fill.Size = UDim2.new(1, 0, 1, 0)
+	fill.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+	fill.BorderSizePixel = 0
+	fill.Parent = frame
+	self.BossBarFill = fill
+	
+	local fillCorner = Instance.new("UICorner")
+	fillCorner.CornerRadius = UDim.new(0, 4)
+	fillCorner.Parent = fill
+	
+	local label = Instance.new("TextLabel")
+	label.Name = "BossName"
+	label.Size = UDim2.new(1, 0, 0, 20)
+	label.Position = UDim2.new(0, 0, -1, -5)
+	label.BackgroundTransparency = 1
+	label.Text = "BOSS NAME"
+	label.TextColor3 = Color3.fromRGB(255, 255, 255)
+	label.Font = THEME.FONT
+	label.TextSize = 18
+	label.TextStrokeTransparency = 0.5
+	label.Parent = frame
+	self.BossNameLabel = label
+end
+
+function UIController:ShowBossBar(data)
+	if not self.BossBarFrame then return end
+	
+	self.BossNameLabel.Text = data.Name or "BOSS"
+	self.BossBarFill.Size = UDim2.new(1, 0, 1, 0)
+	self.BossBarFrame.Visible = true
+end
+
+function UIController:UpdateBossBar(current, max)
+	if not self.BossBarFrame or not self.BossBarFill then return end
+	
+	local percent = math.clamp(current / max, 0, 1)
+	self.BossBarFill:TweenSize(
+		UDim2.new(percent, 0, 1, 0),
+		Enum.EasingDirection.Out,
+		Enum.EasingStyle.Quad,
+		0.2,
+		true
+	)
+end
+
+function UIController:HideBossBar()
+	if not self.BossBarFrame then return end
+	self.BossBarFrame.Visible = false
 end
 
 function UIController:UpdateCurrencyDisplay(currencies)

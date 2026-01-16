@@ -118,7 +118,40 @@ function EnemyService:SpawnEnemy(name: string, position: Vector3)
 	model.PrimaryPart = rootPart
 	model.Parent = self.EnemyFolder
 	
+	self:CreateHealthBar(model)
+	
 	print("[EnemyService] Spawned " .. name)
+end
+
+function EnemyService:CreateHealthBar(model)
+	local humanoid = model:FindFirstChild("Humanoid")
+	local root = model:FindFirstChild("HumanoidRootPart")
+	if not humanoid or not root then return end
+	
+	local bg = Instance.new("BillboardGui")
+	bg.Name = "HealthBarGui"
+	bg.Adornee = root
+	bg.Size = UDim2.new(4, 0, 0.5, 0)
+	bg.StudsOffset = Vector3.new(0, 3, 0)
+	bg.AlwaysOnTop = true
+	bg.Parent = root
+	
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(1, 0, 1, 0)
+	frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	frame.BorderSizePixel = 0
+	frame.Parent = bg
+	
+	local fill = Instance.new("Frame")
+	fill.Size = UDim2.new(1, 0, 1, 0)
+	fill.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+	fill.BorderSizePixel = 0
+	fill.Parent = frame
+	
+	humanoid.HealthChanged:Connect(function(health)
+		local percent = health / humanoid.MaxHealth
+		fill:TweenSize(UDim2.new(percent, 0, 1, 0), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.1, true)
+	end)
 end
 
 function EnemyService:UpdateEnemies()
