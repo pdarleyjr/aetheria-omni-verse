@@ -5,59 +5,90 @@ Constants.SPIRITS = {
 		Name = "Ignis",
 		Type = "Fire",
 		BaseStats = { Atk = 10, Def = 5, Spd = 8 },
-		Rarity = "Common"
+		Rarity = "Common",
+		Model = "IgnisModel"
 	},
 	Aqua = {
 		Name = "Aqua",
 		Type = "Water",
 		BaseStats = { Atk = 6, Def = 8, Spd = 7 },
-		Rarity = "Common"
+		Rarity = "Common",
+		Model = "AquaModel"
 	},
 	Terra = {
 		Name = "Terra",
 		Type = "Earth",
 		BaseStats = { Atk = 8, Def = 10, Spd = 4 },
-		Rarity = "Common"
+		Rarity = "Common",
+		Model = "TerraModel"
 	},
 	Zephyr = {
 		Name = "Zephyr",
 		Type = "Air",
 		BaseStats = { Atk = 7, Def = 4, Spd = 10 },
-		Rarity = "Common"
+		Rarity = "Common",
+		Model = "ZephyrModel"
 	},
 	-- Uncommon
 	Volt = {
 		Name = "Volt",
 		Type = "Air",
 		BaseStats = { Atk = 12, Def = 6, Spd = 12 },
-		Rarity = "Uncommon"
+		Rarity = "Uncommon",
+		Model = "VoltModel"
 	},
 	Frost = {
 		Name = "Frost",
 		Type = "Water",
 		BaseStats = { Atk = 9, Def = 12, Spd = 8 },
-		Rarity = "Uncommon"
+		Rarity = "Uncommon",
+		Model = "FrostModel"
 	},
 	-- Rare
 	Inferno = {
 		Name = "Inferno",
 		Type = "Fire",
 		BaseStats = { Atk = 18, Def = 8, Spd = 10 },
-		Rarity = "Rare"
+		Rarity = "Rare",
+		Model = "InfernoModel"
 	},
 	-- Epic
 	Gaia = {
 		Name = "Gaia",
 		Type = "Earth",
 		BaseStats = { Atk = 15, Def = 20, Spd = 5 },
-		Rarity = "Epic"
+		Rarity = "Epic",
+		Model = "GaiaModel"
 	},
 	-- Legendary
 	Celestia = {
 		Name = "Celestia",
 		Type = "Light",
 		BaseStats = { Atk = 25, Def = 15, Spd = 20 },
-		Rarity = "Legendary"
+		Rarity = "Legendary",
+		Model = "CelestiaModel"
+	}
+}
+
+Constants.ASSETS = {
+	-- Placeholders for when we have real assets. 
+	-- For now, the code will check these, and if invalid/nil, use procedural generation.
+	SPIRITS = {
+		IgnisModel = "rbxassetid://0",
+		AquaModel = "rbxassetid://0",
+		TerraModel = "rbxassetid://0",
+		ZephyrModel = "rbxassetid://0",
+		VoltModel = "rbxassetid://0",
+		FrostModel = "rbxassetid://0",
+		InfernoModel = "rbxassetid://0",
+		GaiaModel = "rbxassetid://0",
+		CelestiaModel = "rbxassetid://0",
+	},
+	ENEMIES = {
+		GlitchSlime = "rbxassetid://0",
+	},
+	BOSSES = {
+		GlitchKing = "rbxassetid://0",
 	}
 }
 

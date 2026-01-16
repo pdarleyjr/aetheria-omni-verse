@@ -47,24 +47,69 @@ function BossService:SpawnBoss(bossId)
 	self.State = "Active"
 	self.BossId = bossId
 	
-	-- Create Placeholder Model
+	-- Create Model
 	local model = Instance.new("Model")
 	model.Name = bossData.Name
 	
-	local part = Instance.new("Part")
-	part.Name = "HumanoidRootPart"
-	part.Size = Vector3.new(10, 20, 10)
-	part.Position = Constants.ZONES["Glitch Wastes"].Center + Vector3.new(0, 10, 0)
-	part.Anchored = true
-	part.Color = Color3.fromRGB(50, 0, 50)
-	part.Material = Enum.Material.Neon
-	part.Parent = model
+	local assetId = Constants.ASSETS.BOSSES[bossId]
+	local rootPart
+	
+	if assetId and assetId ~= "rbxassetid://0" and assetId ~= "" then
+		-- Real asset logic
+	else
+		-- Procedural Boss: The Glitch King
+		-- A large, imposing figure made of dark, glitchy blocks
+		
+		rootPart = Instance.new("Part")
+		rootPart.Name = "HumanoidRootPart"
+		rootPart.Size = Vector3.new(10, 20, 10)
+		rootPart.Position = Constants.ZONES["Glitch Wastes"].Center + Vector3.new(0, 10, 0)
+		rootPart.Anchored = true
+		rootPart.Color = Color3.fromRGB(20, 0, 20)
+		rootPart.Material = Enum.Material.Neon
+		rootPart.Parent = model
+		
+		-- Add a "Crown"
+		local crown = Instance.new("Part")
+		crown.Name = "Crown"
+		crown.Size = Vector3.new(12, 4, 12)
+		crown.Color = Color3.fromRGB(255, 0, 0) -- Corrupted red
+		crown.Material = Enum.Material.Neon
+		crown.CanCollide = false
+		crown.Parent = model
+		
+		local weld = Instance.new("Weld")
+		weld.Part0 = rootPart
+		weld.Part1 = crown
+		weld.C0 = CFrame.new(0, 12, 0)
+		weld.Parent = crown
+		
+		-- Add "Floating" segments
+		for i = 1, 4 do
+			local segment = Instance.new("Part")
+			segment.Size = Vector3.new(4, 8, 4)
+			segment.Color = Color3.fromRGB(50, 0, 50)
+			segment.Material = Enum.Material.ForceField
+			segment.CanCollide = false
+			segment.Parent = model
+			
+			local angle = math.rad(i * 90)
+			local offset = Vector3.new(math.cos(angle) * 10, 0, math.sin(angle) * 10)
+			
+			local sWeld = Instance.new("Weld")
+			sWeld.Part0 = rootPart
+			sWeld.Part1 = segment
+			sWeld.C0 = CFrame.new(offset)
+			sWeld.Parent = segment
+		end
+	end
 	
 	local humanoid = Instance.new("Humanoid")
 	humanoid.MaxHealth = self.MaxHealth
 	humanoid.Health = self.CurrentHealth
 	humanoid.Parent = model
 	
+	model.PrimaryPart = rootPart
 	model.Parent = workspace
 	self.BossModel = model
 	

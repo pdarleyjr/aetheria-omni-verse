@@ -219,39 +219,74 @@ function SpiritService:UpdateCharacterSpirit(player: Player, spirit: any)
 	local spiritDef = Constants.SPIRITS[spirit.Id]
 	if not spiritDef then return end
 	
-	local part = Instance.new("Part")
-	part.Name = "ActiveSpirit"
-	part.Size = Vector3.new(1.5, 1.5, 1.5)
-	part.Shape = Enum.PartType.Ball
-	part.Material = Enum.Material.Neon
-	part.CanCollide = false
-	part.Massless = true
+	local model
 	
-	local color = Constants.SPIRIT_COLORS[spiritDef.Type] or Color3.new(1, 1, 1)
-	part.Color = color
+	-- Check for asset ID first (placeholder check, assuming 0 or empty is invalid)
+	local assetId = Constants.ASSETS.SPIRITS[spiritDef.Model]
+	if assetId and assetId ~= "rbxassetid://0" and assetId ~= "" then
+		-- In a real game, we'd use InsertService or have these preloaded in ReplicatedStorage
+		-- For now, we fallback to procedural because we don't have real assets
+		-- But this block is where you'd clone the real model
+	end
 	
-	-- Add particles or light
-	local light = Instance.new("PointLight")
-	light.Color = color
-	light.Range = 8
-	light.Brightness = 1.5
-	light.Parent = part
+	if not model then
+		-- Procedural Fallback
+		model = Instance.new("Part")
+		model.Name = "ActiveSpirit"
+		model.Size = Vector3.new(1.5, 1.5, 1.5)
+		model.Shape = Enum.PartType.Ball
+		model.Material = Enum.Material.Neon
+		model.CanCollide = false
+		model.Massless = true
+		
+		local color = Constants.SPIRIT_COLORS[spiritDef.Type] or Color3.new(1, 1, 1)
+		model.Color = color
+		
+		-- Add particles or light
+		local light = Instance.new("PointLight")
+		light.Color = color
+		light.Range = 8
+		light.Brightness = 1.5
+		light.Parent = model
+		
+		-- Add some "wings" or orbiting bits based on rarity
+		if spiritDef.Rarity == "Rare" or spiritDef.Rarity == "Epic" or spiritDef.Rarity == "Legendary" then
+			local orbit = Instance.new("Part")
+			orbit.Size = Vector3.new(0.5, 0.5, 0.5)
+			orbit.Shape = Enum.PartType.Ball
+			orbit.Material = Enum.Material.Neon
+			orbit.Color = Color3.new(1, 1, 1)
+			orbit.CanCollide = false
+			orbit.Massless = true
+			orbit.Transparency = 0.5
+			orbit.Parent = model
+			
+			local weld = Instance.new("Weld")
+			weld.Part0 = model
+			weld.Part1 = orbit
+			weld.C0 = CFrame.new(0, 0, 0)
+			weld.C1 = CFrame.new(1.2, 0, 0)
+			weld.Parent = orbit
+			
+			-- Spin animation would need a script or tween, but for now static relative
+		end
+	end
 	
 	-- Position relative to head/shoulder
 	local head = character:FindFirstChild("Head")
 	if head then
-		part.CFrame = head.CFrame * CFrame.new(2, 1, 0)
+		model.CFrame = head.CFrame * CFrame.new(2, 1, 0)
 	else
-		part.CFrame = character.PrimaryPart.CFrame * CFrame.new(2, 2, 0)
+		model.CFrame = character.PrimaryPart.CFrame * CFrame.new(2, 2, 0)
 	end
 	
-	part.Parent = character
+	model.Parent = character
 	
 	-- Weld to character so it moves with them
 	local weld = Instance.new("WeldConstraint")
 	weld.Part0 = head or character.PrimaryPart
-	weld.Part1 = part
-	weld.Parent = part
+	weld.Part1 = model
+	weld.Parent = model
 	
 	print(`[SpiritService] Spawning spirit visual for {player.Name}: {spirit.Name}`)
 end

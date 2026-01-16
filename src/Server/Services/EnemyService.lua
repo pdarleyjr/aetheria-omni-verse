@@ -60,10 +60,63 @@ function EnemyService:SpawnEnemy(name: string, position: Vector3)
 	rootPart.CanCollide = true
 	rootPart.Parent = model
 	
+	-- Check for asset
+	local assetId = Constants.ASSETS.ENEMIES.GlitchSlime
+	if assetId and assetId ~= "rbxassetid://0" and assetId ~= "" then
+		-- Real asset logic would go here
+	else
+		-- Procedural Slime Visuals
+		-- Make it look a bit more like a slime (rounded, maybe slightly transparent)
+		rootPart.Shape = Enum.PartType.Ball
+		rootPart.Transparency = 0.3
+		
+		-- Add a "core"
+		local core = Instance.new("Part")
+		core.Name = "Core"
+		core.Size = Vector3.new(2, 2, 2)
+		core.Shape = Enum.PartType.Ball
+		core.Color = Color3.fromRGB(50, 0, 150)
+		core.Material = Enum.Material.Neon
+		core.CanCollide = false
+		core.Massless = true
+		core.Parent = model
+		
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = rootPart
+		weld.Part1 = core
+		weld.Parent = core
+		
+		-- Align core to root
+		core.CFrame = rootPart.CFrame
+		
+		-- Add eyes
+		local leftEye = Instance.new("Part")
+		leftEye.Name = "LeftEye"
+		leftEye.Size = Vector3.new(0.5, 0.5, 0.2)
+		leftEye.Color = Color3.new(1, 1, 1)
+		leftEye.Material = Enum.Material.Neon
+		leftEye.CanCollide = false
+		leftEye.Parent = model
+		
+		local rightEye = leftEye:Clone()
+		rightEye.Name = "RightEye"
+		rightEye.Parent = model
+		
+		local weldL = Instance.new("Weld")
+		weldL.Part0 = rootPart
+		weldL.Part1 = leftEye
+		weldL.C0 = CFrame.new(-1, 0.5, -1.8)
+		weldL.Parent = leftEye
+		
+		local weldR = Instance.new("Weld")
+		weldR.Part0 = rootPart
+		weldR.Part1 = rightEye
+		weldR.C0 = CFrame.new(1, 0.5, -1.8)
+		weldR.Parent = rightEye
+	end
+	
 	model.PrimaryPart = rootPart
 	model.Parent = self.EnemyFolder
-	
-	-- Add a simple visual face or something?
 	
 	print("[EnemyService] Spawned " .. name)
 end
