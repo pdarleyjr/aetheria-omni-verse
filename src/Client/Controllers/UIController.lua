@@ -15,6 +15,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Maid = require(Shared.Modules.Maid)
 local Signal = require(Shared.Modules.Signal)
 local Remotes = require(Shared.Remotes)
+local Constants = require(Shared.Modules.Constants)
 
 -- Lazy load Controllers to avoid circular dependency issues during Init
 local InventoryController
@@ -88,6 +89,14 @@ end
 
 function UIController:Start()
 	print("[UIController] Starting...")
+	
+	-- Zone Check Loop
+	task.spawn(function()
+		while true do
+			self:UpdateZoneDisplay()
+			task.wait(0.5)
+		end
+	end)
 end
 
 function UIController:CreateHUD()
@@ -96,6 +105,9 @@ function UIController:CreateHUD()
 	screenGui.ResetOnSpawn = false
 	screenGui.Parent = self.PlayerGui
 	self.ScreenGui = screenGui
+	
+	-- 0. Zone Display (Top Center)
+	self:CreateZoneLabel(screenGui)
 	
 	-- 1. Currency Panel (Top Left)
 	local currencyFrame = self:CreateGlassPanel(UDim2.new(0, 220, 0, 90), UDim2.new(0, 20, 0, 20))
@@ -170,6 +182,56 @@ function UIController:CreateHUD()
 			self:UseSkill("Dash")
 		end
 	end)
+end
+
+function UIController:CreateZoneLabel(parent)
+	local frame = self:CreateGlassPanel(UDim2.new(0, 200, 0, 40), UDim2.new(0.5, -100, 0, 10))
+	frame.Name = "ZoneDisplay"
+	frame.Parent = parent
+	
+	local label = Instance.new("TextLabel")
+	label.Name = "ZoneName"
+	label.Size = UDim2.new(1, 0, 1, 0)
+	label.BackgroundTransparency = 1
+	label.Text = "Hub"
+	label.TextColor3 = THEME.ACCENT_COLOR
+	label.Font = THEME.FONT
+	label.TextSize = 18
+	label.Parent = frame
+	self.ZoneLabel = label
+end
+
+function UIController:UpdateZoneDisplay()
+	if not self.Player.Character or not self.Player.Character.PrimaryPart then return end
+	
+	local pos = self.Player.Character.PrimaryPart.Position
+	local currentZone = "Wilderness"
+	
+	-- Check Hub (Simple radius check)
+	if pos.Magnitude < 150 then
+		currentZone = "Hub"
+	else
+		-- Check defined zones
+		for name, zone in pairs(Constants.ZONES) do
+			local center = zone.Center
+			local size = zone.Size
+			
+			-- Simple AABB check (ignoring Y for now or using large Y)
+			if math.abs(pos.X - center.X) < size.X/2 and
+			   math.abs(pos.Z - center.Z) < size.Z/2 then
+				currentZone = name
+				break
+			end
+		end
+	end
+	
+	if self.ZoneLabel and self.ZoneLabel.Text ~= currentZone then
+		self.ZoneLabel.Text = currentZone
+		
+		-- Pulse effect
+		local t = TweenService:Create(self.ZoneLabel, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0, true), {TextSize = 22})
+		t:Play()
+	end
 end
 
 function UIController:CreateQuestTracker(parent)

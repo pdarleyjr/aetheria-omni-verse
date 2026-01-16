@@ -17,6 +17,7 @@ function WorkspaceService:Start()
 	self:GenerateGlitchSpikes()
 	self:GenerateDecor()
 	self:GenerateHubDecor()
+	self:GeneratePortals()
 end
 
 function WorkspaceService:SetupLighting()
@@ -131,6 +132,68 @@ function WorkspaceService:GenerateHubDecor()
 	end
 	
 	print("[WorkspaceService] Generated Hub Decor")
+end
+
+function WorkspaceService:GeneratePortals()
+	local portalsFolder = Instance.new("Folder")
+	portalsFolder.Name = "Portals"
+	portalsFolder.Parent = Workspace
+	
+	local glitchZone = Constants.ZONES["Glitch Wastes"]
+	if glitchZone then
+		-- Hub -> Glitch Wastes
+		self:CreatePortal(portalsFolder, "ToGlitchWastes", Vector3.new(0, 5, 45), glitchZone.Center + Vector3.new(0, 5, 0), Color3.fromRGB(255, 0, 255))
+		
+		-- Glitch Wastes -> Hub
+		self:CreatePortal(portalsFolder, "ToHub", glitchZone.Center + Vector3.new(0, 5, 50), Vector3.new(0, 5, 0), Color3.fromRGB(100, 200, 255))
+	end
+end
+
+function WorkspaceService:CreatePortal(parent, name, position, targetPos, color)
+	local portal = Instance.new("Part")
+	portal.Name = name
+	portal.Size = Vector3.new(8, 10, 1)
+	portal.Position = position
+	portal.Anchored = true
+	portal.CanCollide = false
+	portal.Material = Enum.Material.Neon
+	portal.Color = color
+	portal.Parent = parent
+	
+	-- Visual Frame
+	local frame = Instance.new("Part")
+	frame.Name = "Frame"
+	frame.Size = Vector3.new(10, 12, 2)
+	frame.Position = position
+	frame.Anchored = true
+	frame.CanCollide = true
+	frame.Transparency = 0.8
+	frame.Color = color
+	frame.Parent = portal
+	
+	-- Teleport logic
+	local debounce = {}
+	portal.Touched:Connect(function(hit)
+		local char = hit.Parent
+		local root = char:FindFirstChild("HumanoidRootPart")
+		if root and not debounce[char] then
+			debounce[char] = true
+			
+			-- Teleport effect
+			local highlight = Instance.new("Highlight")
+			highlight.FillColor = Color3.new(1, 1, 1)
+			highlight.OutlineColor = color
+			highlight.Parent = char
+			
+			task.delay(0.5, function()
+				if root then
+					root.CFrame = CFrame.new(targetPos)
+				end
+				if highlight then highlight:Destroy() end
+				debounce[char] = nil
+			end)
+		end
+	end)
 end
 
 function WorkspaceService:GenerateDecor()

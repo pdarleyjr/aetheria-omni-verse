@@ -207,7 +207,7 @@ end
 
 function SpiritService:UpdateCharacterSpirit(player: Player, spirit: any)
 	local character = player.Character
-	if not character or not character.PrimaryPart then return end
+	if not character or not character:IsDescendantOf(Workspace) then return end
 	
 	-- Remove existing spirit
 	local existing = character:FindFirstChild("ActiveSpirit")
@@ -289,19 +289,35 @@ function SpiritService:UpdateCharacterSpirit(player: Player, spirit: any)
 		end
 	end
 	
-	-- Position relative to head/shoulder
+	-- Position relative to head/shoulder with Safe Spawn check
 	local head = character:FindFirstChild("Head")
-	if head then
-		model.CFrame = head.CFrame * CFrame.new(2, 1, 0)
-	else
-		model.CFrame = character.PrimaryPart.CFrame * CFrame.new(2, 2, 0)
+	local root = character:FindFirstChild("HumanoidRootPart")
+	local targetPart = head or root
+	
+	if targetPart then
+		local offset = Vector3.new(2, 2, 0)
+		local origin = targetPart.Position
+		local targetPos = (targetPart.CFrame * CFrame.new(offset)).Position
+		local direction = targetPos - origin
+		
+		local params = RaycastParams.new()
+		params.FilterDescendantsInstances = {character, model}
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		
+		local result = Workspace:Raycast(origin, direction, params)
+		if result then
+			-- If hit something, spawn closer to avoid clipping
+			model.CFrame = CFrame.new(result.Position)
+		else
+			model.CFrame = targetPart.CFrame * CFrame.new(offset)
+		end
 	end
 	
 	model.Parent = character
 	
 	-- Weld to character so it moves with them
 	local weld = Instance.new("WeldConstraint")
-	weld.Part0 = head or character.PrimaryPart
+	weld.Part0 = targetPart
 	weld.Part1 = model
 	weld.Parent = model
 	
