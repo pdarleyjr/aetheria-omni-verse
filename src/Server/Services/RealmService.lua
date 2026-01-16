@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local Constants = require(ReplicatedStorage.Shared.Modules.Constants)
+local Remotes = require(ReplicatedStorage.Shared.Remotes)
 
 -- Assuming DataService is a sibling
 local DataService = require(script.Parent.DataService)
@@ -40,6 +41,12 @@ function RealmService:Start()
 			self:OnPlayerAdded(player)
 		end)
 	end
+	
+	-- Listen for TeleportToHub (Teleport to Home Realm)
+	local TeleportToHub = Remotes.GetEvent("TeleportToHub")
+	TeleportToHub.OnServerEvent:Connect(function(player)
+		self:TeleportToRealm(player, player.UserId)
+	end)
 end
 
 function RealmService:OnPlayerAdded(player: Player)
@@ -114,6 +121,49 @@ function RealmService:CreateRealmInstance(player: Player)
 	base.Parent = realmModel
 	realmModel.PrimaryPart = base
 	
+	-- Create House
+	local house = Instance.new("Model")
+	house.Name = "House"
+	house.Parent = realmModel
+	
+	local floor = Instance.new("Part")
+	floor.Name = "Floor"
+	floor.Size = Vector3.new(20, 1, 20)
+	floor.Position = base.Position + Vector3.new(0, 1, 0)
+	floor.Color = Color3.fromRGB(139, 69, 19)
+	floor.Anchored = true
+	floor.Parent = house
+	
+	local roof = Instance.new("Part")
+	roof.Name = "Roof"
+	roof.Size = Vector3.new(22, 5, 22)
+	roof.Position = base.Position + Vector3.new(0, 10, 0)
+	roof.Color = Color3.fromRGB(160, 82, 45)
+	roof.Anchored = true
+	roof.Shape = Enum.PartType.Wedge -- Simple wedge roof? No, just a block for now or use a Mesh
+	roof.Parent = house
+	
+	-- Create Portal to Combat Zone
+	local portal = Instance.new("Part")
+	portal.Name = "CombatPortal"
+	portal.Size = Vector3.new(6, 8, 1)
+	portal.Position = base.Position + Vector3.new(30, 5, 0)
+	portal.Color = Color3.fromRGB(100, 0, 255)
+	portal.Material = Enum.Material.Neon
+	portal.Anchored = true
+	portal.Parent = realmModel
+	
+	local portalPrompt = Instance.new("ProximityPrompt")
+	portalPrompt.ObjectText = "Combat Zone"
+	portalPrompt.ActionText = "Travel"
+	portalPrompt.Parent = portal
+	
+	portalPrompt.Triggered:Connect(function(triggerPlayer)
+		if triggerPlayer == player then
+			self:TeleportToCombatZone(player)
+		end
+	end)
+	
 	-- Load items
 	if data.Realm and data.Realm.Items then
 		for _, itemData in ipairs(data.Realm.Items) do
@@ -125,6 +175,15 @@ function RealmService:CreateRealmInstance(player: Player)
 	self.RealmInstances[player.UserId] = realmModel
 	
 	return realmModel
+end
+
+function RealmService:TeleportToCombatZone(player: Player)
+	if player.Character and player.Character.PrimaryPart then
+		-- Teleport to Combat Zone (0, 5, 0)
+		local targetPos = Vector3.new(0, 10, 0) + Vector3.new(math.random(-10, 10), 0, math.random(-10, 10))
+		player.Character:PivotTo(CFrame.new(targetPos))
+		print("[RealmService] Teleported " .. player.Name .. " to Combat Zone")
+	end
 end
 
 function RealmService:TeleportToRealm(visitor: Player, ownerId: number)

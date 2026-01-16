@@ -7,10 +7,13 @@ local Workspace = game:GetService("Workspace")
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Constants = require(ReplicatedStorage.Shared.Modules.Constants)
 local SpiritService = require(script.Parent.SpiritService)
+local QuestService = require(script.Parent.QuestService)
 
 local EnemyService = {}
 local enemies = {}
 local ENEMY_FOLDER_NAME = "Enemies"
+local COMBAT_ZONE_CENTER = Vector3.new(0, 5, 0)
+local COMBAT_ZONE_RADIUS = 100
 
 function EnemyService:Init()
 	print("[EnemyService] Initializing...")
@@ -28,7 +31,13 @@ function EnemyService:Start()
 	task.spawn(function()
 		while true do
 			if #self.EnemyFolder:GetChildren() < 5 then
-				self:SpawnEnemy("Glitch Slime", Vector3.new(math.random(-50, 50), 5, math.random(-50, 50)))
+				-- Strict Zoning: Spawn only within the Combat Zone
+				local angle = math.random() * math.pi * 2
+				local radius = math.random() * COMBAT_ZONE_RADIUS
+				local offset = Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
+				local spawnPos = COMBAT_ZONE_CENTER + offset
+				
+				self:SpawnEnemy("Glitch Slime", spawnPos)
 			end
 			task.wait(5)
 		end
@@ -233,6 +242,10 @@ function EnemyService:HandleEnemyDeath(enemy: Model)
 	if killer then
 		local exp = enemy:GetAttribute("ExpReward") or 10
 		SpiritService:AddExp(killer, exp)
+		
+		-- Notify QuestService
+		QuestService:OnEnemyKilled(killer, enemy.Name)
+		
 		print(`[EnemyService] {killer.Name} killed {enemy.Name} and gained {exp} XP!`)
 	end
 	

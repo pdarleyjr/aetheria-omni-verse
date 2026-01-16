@@ -48,6 +48,7 @@ function UIController:Init()
 	local BossSpawned = Remotes.GetEvent("BossSpawned")
 	local BossUpdate = Remotes.GetEvent("BossUpdate")
 	local BossDefeated = Remotes.GetEvent("BossDefeated")
+	local QuestUpdate = Remotes.GetEvent("QuestUpdate")
 	
 	BossSpawned.OnClientEvent:Connect(function(data)
 		self:ShowBossBar(data)
@@ -60,6 +61,10 @@ function UIController:Init()
 	
 	BossDefeated.OnClientEvent:Connect(function()
 		self:HideBossBar()
+	end)
+	
+	QuestUpdate.OnClientEvent:Connect(function(data)
+		self:UpdateQuestTracker(data)
 	end)
 	
 	-- Create main HUD
@@ -104,7 +109,10 @@ function UIController:CreateHUD()
 	
 	-- 1.9 Title Card (Hidden by default)
 	self:CreateTitleCard(screenGui)
-
+	
+	-- 1.95 Quest Tracker
+	self:CreateQuestTracker(screenGui)
+	
 	-- 2. Combat Controls (Bottom Right)
 	local combatFrame = Instance.new("Frame")
 	combatFrame.Name = "CombatControls"
@@ -151,6 +159,90 @@ function UIController:CreateHUD()
 			self:UseSkill("Dash")
 		end
 	end)
+end
+
+function UIController:CreateQuestTracker(parent)
+	local frame = self:CreateGlassPanel(UDim2.new(0, 220, 0, 120), UDim2.new(0, 20, 0, 350))
+	frame.Name = "QuestTracker"
+	frame.Visible = false
+	frame.Parent = parent
+	self.QuestFrame = frame
+	
+	local title = Instance.new("TextLabel")
+	title.Name = "Title"
+	title.Size = UDim2.new(1, -20, 0, 25)
+	title.Position = UDim2.new(0, 10, 0, 5)
+	title.BackgroundTransparency = 1
+	title.Text = "Quest Title"
+	title.TextColor3 = THEME.ACCENT_COLOR
+	title.Font = THEME.FONT
+	title.TextSize = 16
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.Parent = frame
+	self.QuestTitle = title
+	
+	local desc = Instance.new("TextLabel")
+	desc.Name = "Description"
+	desc.Size = UDim2.new(1, -20, 0, 40)
+	desc.Position = UDim2.new(0, 10, 0, 30)
+	desc.BackgroundTransparency = 1
+	desc.Text = "Quest Description goes here..."
+	desc.TextColor3 = THEME.TEXT_COLOR
+	desc.Font = Enum.Font.Gotham
+	desc.TextSize = 12
+	desc.TextWrapped = true
+	desc.TextXAlignment = Enum.TextXAlignment.Left
+	desc.TextYAlignment = Enum.TextYAlignment.Top
+	desc.Parent = frame
+	self.QuestDesc = desc
+	
+	local tasks = Instance.new("Frame")
+	tasks.Name = "Tasks"
+	tasks.Size = UDim2.new(1, -20, 0, 40)
+	tasks.Position = UDim2.new(0, 10, 0, 75)
+	tasks.BackgroundTransparency = 1
+	tasks.Parent = frame
+	self.QuestTasks = tasks
+	
+	local layout = Instance.new("UIListLayout")
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Parent = tasks
+end
+
+function UIController:UpdateQuestTracker(data)
+	if not self.QuestFrame then return end
+	
+	if not data then
+		self.QuestFrame.Visible = false
+		return
+	end
+	
+	self.QuestFrame.Visible = true
+	self.QuestTitle.Text = data.Title
+	self.QuestDesc.Text = data.Description
+	
+	-- Clear old tasks
+	for _, child in ipairs(self.QuestTasks:GetChildren()) do
+		if child:IsA("TextLabel") then
+			child:Destroy()
+		end
+	end
+	
+	-- Add new tasks
+	if data.Tasks then
+		for i, taskData in ipairs(data.Tasks) do
+			local label = Instance.new("TextLabel")
+			label.Size = UDim2.new(1, 0, 0, 20)
+			label.BackgroundTransparency = 1
+			label.Text = string.format("- %s: %d/%d", taskData.Description, taskData.Current, taskData.Required)
+			label.TextColor3 = THEME.TEXT_COLOR
+			label.Font = Enum.Font.Gotham
+			label.TextSize = 12
+			label.TextXAlignment = Enum.TextXAlignment.Left
+			label.LayoutOrder = i
+			label.Parent = self.QuestTasks
+		end
+	end
 end
 
 function UIController:CreateGlassPanel(size, position)
