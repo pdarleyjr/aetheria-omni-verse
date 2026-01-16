@@ -7,6 +7,28 @@ local Constants = require(ReplicatedStorage.Shared.Modules.Constants)
 
 local WorkspaceService = {}
 
+function WorkspaceService:SetupLighting()
+	Lighting.ClockTime = 0
+	Lighting.Brightness = 2
+	Lighting.OutdoorAmbient = Color3.fromRGB(80, 40, 120) -- Purple
+
+	local sky = Instance.new("Sky")
+	sky.Name = "NebulaSky"
+	sky.SkyboxBk = "rbxassetid://159454299"
+	sky.SkyboxDn = "rbxassetid://159454299"
+	sky.SkyboxFt = "rbxassetid://159454299"
+	sky.SkyboxLf = "rbxassetid://159454299"
+	sky.SkyboxRt = "rbxassetid://159454299"
+	sky.SkyboxUp = "rbxassetid://159454299"
+	sky.Parent = Lighting
+end
+
+function WorkspaceService:TeleportToHub(player)
+	if player.Character then
+		player.Character:PivotTo(CFrame.new(0, 5, 0))
+	end
+end
+
 function WorkspaceService:Init()
 	print("[WorkspaceService] Initializing...")
 	self:SetupLighting()
@@ -17,56 +39,60 @@ function WorkspaceService:Start()
 	self:GenerateGlitchSpikes()
 	self:GenerateDecor()
 	self:GenerateHubDecor()
+	self:SpawnAzureSea()
 	self:GeneratePortals()
 end
 
-function WorkspaceService:SetupLighting()
-	Lighting.Ambient = Color3.fromRGB(50, 50, 70)
-	Lighting.OutdoorAmbient = Color3.fromRGB(30, 30, 50)
-	Lighting.Brightness = 2
-	Lighting.ClockTime = 14
-	Lighting.ShadowSoftness = 0.2
-	Lighting.GlobalShadows = true
+function WorkspaceService:SpawnAzureSea()
+	local zone = Constants.ZONES["Azure Sea"]
+	if not zone then return end
 	
-	-- Skybox
-	local sky = Instance.new("Sky")
-	sky.Name = "FantasySky"
-	sky.SkyboxBk = "rbxassetid://6444884337"
-	sky.SkyboxDn = "rbxassetid://6444884785"
-	sky.SkyboxFt = "rbxassetid://6444884337"
-	sky.SkyboxLf = "rbxassetid://6444884337"
-	sky.SkyboxRt = "rbxassetid://6444884337"
-	sky.SkyboxUp = "rbxassetid://6412503613"
-	sky.SunTextureId = "rbxassetid://6196665106"
-	sky.SunAngularSize = 11
-	sky.MoonTextureId = "rbxassetid://6444884337"
-	sky.MoonAngularSize = 11
-	sky.StarCount = 3000
-	sky.Parent = Lighting
+	local seaFolder = Instance.new("Folder")
+	seaFolder.Name = "AzureSea"
+	seaFolder.Parent = Workspace
 	
-	local atmosphere = Instance.new("Atmosphere")
-	atmosphere.Density = 0.3
-	atmosphere.Offset = 0.25
-	atmosphere.Color = Color3.fromRGB(150, 150, 200)
-	atmosphere.Decay = Color3.fromRGB(100, 100, 150)
-	atmosphere.Glare = 0.5
-	atmosphere.Haze = 1
-	atmosphere.Parent = Lighting
+	-- Massive Water Part
+	local water = Instance.new("Part")
+	water.Name = "SeaWater"
+	water.Size = Vector3.new(2048, 1, 2048)
+	water.Position = zone.Center
+	water.Anchored = true
+	water.CanCollide = false
+	water.Material = Enum.Material.Water
+	water.Transparency = 0.2
+	water.Color = Color3.fromRGB(0, 100, 255)
+	water.Parent = seaFolder
 	
-	local bloom = Instance.new("BloomEffect")
-	bloom.Intensity = 0.4
-	bloom.Size = 24
-	bloom.Threshold = 0.8
-	bloom.Parent = Lighting
+	-- Spawn 5 Islands
+	for i = 1, 5 do
+		local angle = (i / 5) * math.pi * 2
+		local radius = 400
+		local x = zone.Center.X + math.cos(angle) * radius
+		local z = zone.Center.Z + math.sin(angle) * radius
+		
+		local island = Instance.new("Part")
+		island.Name = "Island" .. i
+		island.Size = Vector3.new(100, 5, 100)
+		island.Position = Vector3.new(x, 2, z)
+		island.Anchored = true
+		island.Material = Enum.Material.Sand
+		island.Color = Color3.fromRGB(240, 230, 140)
+		island.Shape = Enum.PartType.Cylinder
+		island.Parent = seaFolder
+		
+		-- Add some grass on top
+		local grass = Instance.new("Part")
+		grass.Name = "GrassTop"
+		grass.Size = Vector3.new(90, 1, 90)
+		grass.Position = Vector3.new(x, 4.6, z)
+		grass.Anchored = true
+		grass.Material = Enum.Material.Grass
+		grass.Color = Color3.fromRGB(75, 150, 50)
+		grass.Shape = Enum.PartType.Cylinder
+		grass.Parent = island
+	end
 	
-	local blur = Instance.new("BlurEffect")
-	blur.Size = 2
-	blur.Parent = Lighting
-	
-	local sunRays = Instance.new("SunRaysEffect")
-	sunRays.Intensity = 0.1
-	sunRays.Spread = 0.8
-	sunRays.Parent = Lighting
+	print("[WorkspaceService] Generated Azure Sea")
 end
 
 function WorkspaceService:GenerateHubDecor()
@@ -147,9 +173,18 @@ function WorkspaceService:GeneratePortals()
 		-- Glitch Wastes -> Hub
 		self:CreatePortal(portalsFolder, "ToHub", glitchZone.Center + Vector3.new(0, 5, 50), Vector3.new(0, 5, 0), Color3.fromRGB(100, 200, 255))
 	end
+	
+	local azureZone = Constants.ZONES["Azure Sea"]
+	if azureZone then
+		-- Hub -> Azure Sea
+		self:CreatePortal(portalsFolder, "ToAzureSea", Vector3.new(20, 5, 20), azureZone.Center + Vector3.new(0, 10, 0), Color3.fromRGB(0, 150, 255), "TRAVEL TO AZURE SEA")
+		
+		-- Azure Sea -> Hub
+		self:CreatePortal(portalsFolder, "ToHubFromSea", azureZone.Center + Vector3.new(0, 10, 0), Vector3.new(0, 5, 0), Color3.fromRGB(100, 200, 255), "RETURN TO HUB")
+	end
 end
 
-function WorkspaceService:CreatePortal(parent, name, position, targetPos, color)
+function WorkspaceService:CreatePortal(parent, name, position, targetPos, color, labelText)
 	local portal = Instance.new("Part")
 	portal.Name = name
 	portal.Size = Vector3.new(8, 10, 1)
@@ -170,6 +205,28 @@ function WorkspaceService:CreatePortal(parent, name, position, targetPos, color)
 	frame.Transparency = 0.8
 	frame.Color = color
 	frame.Parent = portal
+	
+	-- Label
+	if labelText then
+		local surfaceGui = Instance.new("SurfaceGui")
+		surfaceGui.Face = Enum.NormalId.Front
+		surfaceGui.Parent = portal
+		
+		local textLabel = Instance.new("TextLabel")
+		textLabel.Size = UDim2.new(1, 0, 0.2, 0)
+		textLabel.Position = UDim2.new(0, 0, 0.1, 0)
+		textLabel.BackgroundTransparency = 1
+		textLabel.Text = labelText
+		textLabel.TextColor3 = Color3.new(1, 1, 1)
+		textLabel.TextScaled = true
+		textLabel.Font = Enum.Font.GothamBold
+		textLabel.Parent = surfaceGui
+		
+		-- Back label
+		local surfaceGuiBack = surfaceGui:Clone()
+		surfaceGuiBack.Face = Enum.NormalId.Back
+		surfaceGuiBack.Parent = portal
+	end
 	
 	-- Teleport logic
 	local debounce = {}

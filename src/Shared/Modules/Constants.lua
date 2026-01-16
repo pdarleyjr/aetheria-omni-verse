@@ -152,8 +152,8 @@ Constants.ZONES = {
 		AtmosphereColor = Color3.fromRGB(100, 0, 100)
 	},
 	["Azure Sea"] = {
-		Center = Vector3.new(0, 5, 50),
-		Size = Vector3.new(500, 50, 500),
+		Center = Vector3.new(10000, 0, 0),
+		Size = Vector3.new(2048, 50, 2048),
 		BaseColor = Color3.fromRGB(0, 100, 255),
 		PlatformColor = Color3.fromRGB(0, 80, 200),
 		AtmosphereColor = Color3.fromRGB(150, 200, 255)

@@ -50,6 +50,7 @@ function UIController:Init()
 	
 	self.RequestSkill = Remotes.GetEvent("RequestSkill")
 	self.TeleportToHub = Remotes.GetEvent("TeleportToHub")
+	self.SpawnVehicle = Remotes.GetEvent("SpawnVehicle")
 	
 	-- Boss Events
 	local BossSpawned = Remotes.GetEvent("BossSpawned")
@@ -127,6 +128,9 @@ function UIController:CreateHUD()
 	
 	-- 1.5 Menu Buttons (Left Side)
 	self:CreateMenuButtons(screenGui)
+	
+	-- 1.6 Context Buttons (Right Side, above combat)
+	self:CreateContextButtons(screenGui)
 	
 	-- 1.8 Boss Bar (Hidden by default)
 	self:CreateBossBar(screenGui)
@@ -233,6 +237,8 @@ function UIController:UpdateZoneDisplay()
 	-- Check Hub (Simple radius check)
 	if pos.Magnitude < 150 then
 		currentZone = "Hub"
+	elseif pos.X > 5000 then
+		currentZone = "Azure Sea"
 	else
 		-- Check defined zones
 		for name, zone in pairs(Constants.ZONES) do
@@ -248,12 +254,25 @@ function UIController:UpdateZoneDisplay()
 		end
 	end
 	
-	if self.ZoneLabel and self.ZoneLabel.Text ~= currentZone then
-		self.ZoneLabel.Text = currentZone
+	-- Update Label
+	if self.ZoneLabel then
+		local displayText = currentZone
+		if currentZone == "Azure Sea" then
+			displayText = "🌊 The Azure Sea (Fishing Zone)"
+		end
 		
-		-- Pulse effect
-		local t = TweenService:Create(self.ZoneLabel, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0, true), {TextSize = 22})
-		t:Play()
+		if self.ZoneLabel.Text ~= displayText then
+			self.ZoneLabel.Text = displayText
+			
+			-- Pulse effect
+			local t = TweenService:Create(self.ZoneLabel, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0, true), {TextSize = 22})
+			t:Play()
+		end
+	end
+	
+	-- Update Context Buttons
+	if self.BoatButton then
+		self.BoatButton.Visible = (currentZone == "Azure Sea")
 	end
 end
 
@@ -593,6 +612,34 @@ function UIController:CreateMenuButtons(parent)
 	
 	hubBtn.Activated:Connect(function()
 		self.TeleportToHub:FireServer()
+	end)
+end
+
+function UIController:CreateContextButtons(parent)
+	local frame = Instance.new("Frame")
+	frame.Name = "ContextButtons"
+	frame.Size = UDim2.new(0, 60, 0, 200)
+	frame.Position = UDim2.new(1, -80, 0.5, -100)
+	frame.BackgroundTransparency = 1
+	frame.Parent = parent
+	self.ContextButtonsFrame = frame
+	
+	local layout = Instance.new("UIListLayout")
+	layout.Padding = UDim.new(0, 10)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	layout.Parent = frame
+	
+	-- Boat Button
+	local boatBtn = self:CreateActionButton("🚤", UDim2.new(0, 0, 0, 0), Color3.fromRGB(0, 150, 200))
+	boatBtn.Size = UDim2.new(0, 50, 0, 50)
+	boatBtn.LayoutOrder = 1
+	boatBtn.Visible = false
+	boatBtn.Parent = frame
+	self.BoatButton = boatBtn
+	
+	boatBtn.Activated:Connect(function()
+		self.SpawnVehicle:FireServer("Skiff")
 	end)
 end
 

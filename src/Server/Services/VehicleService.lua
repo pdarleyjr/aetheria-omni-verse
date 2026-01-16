@@ -30,23 +30,46 @@ function VehicleService:SpawnVehicle(player, vehicleId)
 	local rootPart = character:FindFirstChild("HumanoidRootPart")
 	if not rootPart then return false end
 
-	-- Create a simple vehicle (VehicleSeat)
-	local vehicle = Instance.new("VehicleSeat")
-	vehicle.Name = vehicleData.Name
-	vehicle.Size = Vector3.new(6, 1, 12)
-	vehicle.Color = Color3.fromRGB(139, 69, 19) -- Wood
-	vehicle.MaxSpeed = vehicleData.Speed
-	vehicle.TurnSpeed = vehicleData.TurnSpeed
-	vehicle.Position = rootPart.Position + (rootPart.CFrame.LookVector * 10) + Vector3.new(0, 2, 0)
-	vehicle.Parent = Workspace
-
-	-- Add a visual mesh or part to make it look like a boat?
-	-- For now, just the seat is functional.
+	-- Create Model
+	local model = Instance.new("Model")
+	model.Name = vehicleData.Name .. "_" .. player.Name
 	
-	-- Seat the player
+	-- Hull
+	local hull = Instance.new("Part")
+	hull.Name = "Hull"
+	hull.Size = Vector3.new(6, 1, 12)
+	hull.Color = Color3.fromRGB(139, 69, 19) -- Brown Wood
+	hull.Material = Enum.Material.Wood
+	hull.Anchored = false
+	hull.CanCollide = true
+	hull.Parent = model
+	
+	-- VehicleSeat
+	local seat = Instance.new("VehicleSeat")
+	seat.Name = "VehicleSeat"
+	seat.Size = Vector3.new(2, 1, 2)
+	seat.Color = Color3.fromRGB(100, 100, 100)
+	seat.MaxSpeed = vehicleData.Speed
+	seat.TurnSpeed = vehicleData.TurnSpeed
+	seat.Position = hull.Position + Vector3.new(0, 0.5, 0)
+	seat.Parent = model
+	
+	-- Weld Seat to Hull
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = hull
+	weld.Part1 = seat
+	weld.Parent = hull
+	
+	-- Position near player
+	local spawnPos = rootPart.Position + (rootPart.CFrame.LookVector * 10) + Vector3.new(0, 2, 0)
+	model:PivotTo(CFrame.new(spawnPos))
+	
+	model.Parent = Workspace
+	
+	-- Sit the player
 	local humanoid = character:FindFirstChild("Humanoid")
 	if humanoid then
-		vehicle:Sit(humanoid)
+		seat:Sit(humanoid)
 	end
 
 	return true

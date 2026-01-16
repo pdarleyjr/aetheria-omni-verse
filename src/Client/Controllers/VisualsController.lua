@@ -193,7 +193,7 @@ function VisualsController:PlayIntro()
 	
 	-- Tween 2: Zoom in
 	local tweenInfo2 = TweenInfo.new(4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	local goal2 = { CFrame = CFrame.new(rootPart.Position + Vector3.new(0, 10, 15), rootPart.Position) }
+	local goal2 = { CFrame = CFrame.new(rootPart.Position + Vector3.new(0, 10, 15), Vector3.new(0, 5, 0)) }
 	local tween2 = TweenService:Create(camera, tweenInfo2, goal2)
 	
 	tween1:Play()
@@ -229,7 +229,7 @@ function VisualsController:ShowWelcomeText()
 	label.Size = UDim2.new(1, 0, 0, 100)
 	label.Position = UDim2.new(0, 0, 0.4, 0)
 	label.BackgroundTransparency = 1
-	label.Text = "WELCOME TO THE REALM"
+	label.Text = "WELCOME TO THE HUB. DEFEAT THE GLITCH."
 	label.TextColor3 = Color3.fromRGB(255, 255, 255)
 	label.Font = Enum.Font.GothamBold
 	label.TextSize = 48

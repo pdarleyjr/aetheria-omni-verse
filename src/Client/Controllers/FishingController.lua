@@ -2,11 +2,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local Knit = require(ReplicatedStorage.Packages.Knit)
+local ContextActionService = game:GetService("ContextActionService")
 
-local FishingController = Knit.CreateController {
-	Name = "FishingController",
-}
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Remotes = require(Shared.Remotes)
+
+local FishingController = {}
 
 -- Minigame Constants
 local BAR_HEIGHT = 300
@@ -18,30 +19,37 @@ local LIFT_FORCE = 1200
 local CATCH_SPEED = 25 -- % per second
 local DECAY_SPEED = 10 -- % per second
 
-function FishingController:KnitStart()
-	self.FishingService = Knit.GetService("FishingService")
+function FishingController:Init()
+	print("[FishingController] Init")
+	self.CastLineEvent = Remotes.GetEvent("CastLine")
+	self.CatchFishEvent = Remotes.GetEvent("CatchFish") -- Assuming this exists or will be used
+end
+
+function FishingController:Start()
+	print("[FishingController] Start")
 	
-	-- Input to start fishing (e.g., 'F' key)
-	UserInputService.InputBegan:Connect(function(input, gameProcessed)
-		if gameProcessed then return end
-		if input.KeyCode == Enum.KeyCode.F then
+	-- Input to start fishing
+	ContextActionService:BindAction("Fish", function(actionName, inputState, inputObject)
+		if inputState == Enum.UserInputState.Begin then
 			self:AttemptStartFishing()
 		end
-	end)
+	end, true, Enum.KeyCode.F, Enum.KeyCode.ButtonY)
+	
+	ContextActionService:SetTitle("Fish", "Fish")
 end
 
 function FishingController:AttemptStartFishing()
 	if self.IsFishing then return end
 	
-	-- In a real game, check if player is near water or has a rod equipped
-	-- For this phase, we assume valid conditions if they press F
+	-- Fire server to check if we can fish
+	-- For now, we'll just simulate the start on client for the minigame
+	-- In a real scenario, server would validate and return session data
 	
-	self.FishingService:StartFishing():andThen(function(sessionData)
-		if sessionData then
-			self.IsFishing = true
-			self:StartMinigame(sessionData)
-		end
-	end):catch(warn)
+	-- self.CastLineEvent:FireServer() -- Uncomment when server logic is ready
+	
+	-- Simulating server response for now
+	self.IsFishing = true
+	self:StartMinigame({ Difficulty = 1 })
 end
 
 function FishingController:StartMinigame(sessionData)
@@ -183,19 +191,12 @@ function FishingController:StartMinigame(sessionData)
 		-- 5. Win/Loss
 		if progress >= 100 then
 			Cleanup()
-			self.FishingService:ProcessCatch(true):andThen(function(success, fishName)
-				if success then
-					print("Caught a " .. tostring(fishName) .. "!")
-				end
-			end)
+			-- self.CatchFishEvent:FireServer(true) -- Uncomment when server logic is ready
+			print("Caught a fish!")
 		end
 		
 		-- Optional: Fail condition if progress hits 0 after starting?
 	end)
-end
-
-function FishingController:KnitInit()
-	
 end
 
 return FishingController

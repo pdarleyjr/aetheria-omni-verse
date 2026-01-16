@@ -65,8 +65,8 @@ function EnemyService:Start()
 			if not bossExists then
 				local zone = Constants.ZONES["Glitch Wastes"]
 				if zone then
-					-- Spawn boss in center of zone
-					self:SpawnBoss("Glitch King", zone.Center + Vector3.new(0, 10, 0))
+					-- Spawn boss at specific position
+					self:SpawnBoss("Glitch King", Vector3.new(0, 15, 300))
 				end
 			end
 			
@@ -89,6 +89,7 @@ function EnemyService:SpawnBoss(name: string, position: Vector3)
 	model:SetAttribute("IsBoss", true)
 	model:SetAttribute("ExpReward", bossDef.Rewards.Exp)
 	model:SetAttribute("Passive", true) -- Starts passive
+	model:SetAttribute("AggroRange", 100)
 	model:SetAttribute("LastAttack", 0)
 	model:SetAttribute("LastMove", 0)
 	
@@ -270,7 +271,8 @@ function EnemyService:UpdateEnemies()
 					end
 					
 					-- Boss Movement & Attack
-					if distance < 100 then
+					local aggroRange = enemy:GetAttribute("AggroRange") or 100
+					if distance < aggroRange then
 						local lastMove = enemy:GetAttribute("LastMove") or 0
 						if now - lastMove > 0.1 then
 							humanoid:MoveTo(targetPos)
