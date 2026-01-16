@@ -5,17 +5,18 @@ local Debris = game:GetService("Debris")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 
+local Remotes = require(ReplicatedStorage.Shared.Remotes)
+
 local VisualsController = {}
 
 function VisualsController:Init()
 	print("[VisualsController] Initializing...")
-	self.Remotes = ReplicatedStorage:WaitForChild("Remotes")
 end
 
 function VisualsController:Start()
 	print("[VisualsController] Starting...")
 	
-	local bossAttack = self.Remotes:WaitForChild("Boss"):WaitForChild("BossAttack")
+	local bossAttack = Remotes.GetEvent("BossAttack")
 	bossAttack.OnClientEvent:Connect(function(attackName, duration)
 		if attackName == "Spike" then
 			self:ShakeCamera(duration or 0.5, 1)

@@ -113,6 +113,8 @@ function WorkspaceService:CreatePortal(biomeData, parent)
 	portal.Material = Enum.Material.Neon
 	portal.Parent = parent
 	
+	self:CreateHighlight(portal, biomeData.Color)
+	
 	-- Add a label
 	local sg = Instance.new("SurfaceGui")
 	sg.Face = Enum.NormalId.Front
@@ -181,6 +183,16 @@ function WorkspaceService:SpawnGlitchBiome()
 	base.Color = zoneData.PlatformColor
 	base.Parent = folder
 
+	-- Add Texture
+	local texture = Instance.new("Texture")
+	texture.Texture = "rbxassetid://6063601351" -- Grid texture
+	texture.Face = Enum.NormalId.Top
+	texture.StudsPerTileU = 20
+	texture.StudsPerTileV = 20
+	texture.Transparency = 0.8
+	texture.Color3 = Color3.fromRGB(0, 0, 0)
+	texture.Parent = base
+
 	-- Generate Glitch Structures
 	for i = 1, 50 do
 		local part = Instance.new("Part")
@@ -199,6 +211,10 @@ function WorkspaceService:SpawnGlitchBiome()
 		part.Color = Color3.fromHSV(Random:NextNumber(0.75, 0.9), 1, 1)
 		part.Orientation = Vector3.new(Random:NextNumber(0, 360), Random:NextNumber(0, 360), Random:NextNumber(0, 360))
 		part.Parent = folder
+		
+		if Random:NextNumber() > 0.8 then
+			self:CreateHighlight(part, part.Color)
+		end
 	end
 	
 	-- Return Portal
@@ -210,6 +226,8 @@ function WorkspaceService:SpawnGlitchBiome()
 	returnPortal.Color = Color3.fromRGB(255, 255, 255)
 	returnPortal.Material = Enum.Material.Neon
 	returnPortal.Parent = folder
+	
+	self:CreateHighlight(returnPortal, Color3.fromRGB(255, 255, 255))
 	
 	local sg = Instance.new("SurfaceGui")
 	sg.Face = Enum.NormalId.Front
@@ -236,6 +254,15 @@ function WorkspaceService:SpawnGlitchBiome()
 			end
 		end
 	end)
+end
+
+function WorkspaceService:CreateHighlight(target, color)
+	local highlight = Instance.new("Highlight")
+	highlight.FillColor = color
+	highlight.OutlineColor = Color3.new(1, 1, 1)
+	highlight.FillTransparency = 0.5
+	highlight.OutlineTransparency = 0
+	highlight.Parent = target
 end
 
 function WorkspaceService:CreateTestDummy()

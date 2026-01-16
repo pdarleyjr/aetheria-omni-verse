@@ -42,12 +42,15 @@ function Remotes.Init()
 	_functions["TeleportToRealm"] = createRemote("TeleportToRealm", "RemoteFunction")
 	_events["TeleportToHub"] = createRemote("TeleportToHub", "RemoteEvent")
 	
+	-- Spirit Remotes
+	_events["EquipSpirit"] = createRemote("EquipSpirit", "RemoteEvent")
+	
 	-- Boss Remotes
 	_events["BossSpawned"] = createRemote("BossSpawned", "RemoteEvent")
 	_events["BossUpdate"] = createRemote("BossUpdate", "RemoteEvent")
 	_events["BossAttack"] = createRemote("BossAttack", "RemoteEvent")
 	_events["BossDefeated"] = createRemote("BossDefeated", "RemoteEvent")
-	_events["BosstUniqueId"] = createRemote("BosstUniqueId", "RemoteEvent")
+	_events["BossUniqueId"] = createRemote("BossUniqueId", "RemoteEvent")
 	
 	print("✓ All Remote Events created")
 end
