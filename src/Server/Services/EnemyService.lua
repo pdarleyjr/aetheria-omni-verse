@@ -44,6 +44,8 @@ function EnemyService:SpawnEnemy(name: string, position: Vector3)
 	local model = Instance.new("Model")
 	model.Name = name
 	model:SetAttribute("ExpReward", 25) -- Base XP reward
+	model:SetAttribute("LastAttack", 0)
+	model:SetAttribute("LastMove", 0)
 	
 	local humanoid = Instance.new("Humanoid")
 	humanoid.MaxHealth = 100
@@ -155,6 +157,8 @@ function EnemyService:CreateHealthBar(model)
 end
 
 function EnemyService:UpdateEnemies()
+	local now = os.clock()
+	
 	for _, enemy in ipairs(self.EnemyFolder:GetChildren()) do
 		local humanoid = enemy:FindFirstChild("Humanoid")
 		local rootPart = enemy:FindFirstChild("HumanoidRootPart")
@@ -174,13 +178,25 @@ function EnemyService:UpdateEnemies()
 				local distance = (targetPos - rootPart.Position).Magnitude
 				
 				if distance < 50 then
-					humanoid:MoveTo(targetPos)
+					-- Throttle movement updates
+					local lastMove = enemy:GetAttribute("LastMove") or 0
+					if now - lastMove > 0.2 then
+						humanoid:MoveTo(targetPos)
+						enemy:SetAttribute("LastMove", now)
+					end
 					
 					-- Simple attack logic
-					if distance < 5 then
-						-- Deal damage to player?
-						-- For now just print
-						-- print(enemy.Name .. " is attacking " .. target.Name)
+					if distance < 6 then
+						local lastAttack = enemy:GetAttribute("LastAttack") or 0
+						if now - lastAttack > 1.5 then -- 1.5s cooldown
+							-- Deal damage to player
+							local targetHumanoid = target.Character:FindFirstChild("Humanoid")
+							if targetHumanoid then
+								targetHumanoid:TakeDamage(10)
+								enemy:SetAttribute("LastAttack", now)
+								-- Optional: Play animation or sound here
+							end
+						end
 					end
 				end
 			end

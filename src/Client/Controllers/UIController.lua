@@ -51,6 +51,7 @@ function UIController:Init()
 	
 	BossSpawned.OnClientEvent:Connect(function(data)
 		self:ShowBossBar(data)
+		self:ShowTitleCard(data.Name)
 	end)
 	
 	BossUpdate.OnClientEvent:Connect(function(current, max)
@@ -100,6 +101,9 @@ function UIController:CreateHUD()
 	
 	-- 1.8 Boss Bar (Hidden by default)
 	self:CreateBossBar(screenGui)
+	
+	-- 1.9 Title Card (Hidden by default)
+	self:CreateTitleCard(screenGui)
 
 	-- 2. Combat Controls (Bottom Right)
 	local combatFrame = Instance.new("Frame")
@@ -277,6 +281,76 @@ function UIController:CreateBossBar(parent)
 	label.TextStrokeTransparency = 0.5
 	label.Parent = frame
 	self.BossNameLabel = label
+end
+
+function UIController:CreateTitleCard(parent)
+	local frame = Instance.new("Frame")
+	frame.Name = "TitleCard"
+	frame.Size = UDim2.new(1, 0, 0, 150)
+	frame.Position = UDim2.new(0, 0, 0.3, 0)
+	frame.BackgroundTransparency = 1
+	frame.Visible = false
+	frame.Parent = parent
+	self.TitleCardFrame = frame
+	
+	local label = Instance.new("TextLabel")
+	label.Name = "Title"
+	label.Size = UDim2.new(1, 0, 0.6, 0)
+	label.Position = UDim2.new(0, 0, 0, 0)
+	label.BackgroundTransparency = 1
+	label.Text = "BOSS NAME"
+	label.TextColor3 = Color3.fromRGB(255, 50, 50)
+	label.Font = Enum.Font.Creepster
+	label.TextScaled = true
+	label.TextStrokeTransparency = 0
+	label.Parent = frame
+	self.TitleCardLabel = label
+	
+	local subLabel = Instance.new("TextLabel")
+	subLabel.Name = "Subtitle"
+	subLabel.Size = UDim2.new(1, 0, 0.3, 0)
+	subLabel.Position = UDim2.new(0, 0, 0.6, 0)
+	subLabel.BackgroundTransparency = 1
+	subLabel.Text = "HAS AWAKENED"
+	subLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	subLabel.Font = Enum.Font.GothamBold
+	subLabel.TextScaled = true
+	subLabel.TextStrokeTransparency = 0.5
+	subLabel.Parent = frame
+end
+
+function UIController:ShowTitleCard(bossName)
+	if not self.TitleCardFrame then return end
+	
+	self.TitleCardLabel.Text = bossName or "UNKNOWN ENTITY"
+	self.TitleCardFrame.Visible = true
+	self.TitleCardFrame.BackgroundTransparency = 1
+	
+	-- Animation
+	local originalPos = UDim2.new(0, 0, 0.3, 0)
+	self.TitleCardFrame.Position = UDim2.new(-1, 0, 0.3, 0)
+	
+	self.TitleCardFrame:TweenPosition(
+		originalPos,
+		Enum.EasingDirection.Out,
+		Enum.EasingStyle.Back,
+		1,
+		true
+	)
+	
+	task.delay(4, function()
+		self.TitleCardFrame:TweenPosition(
+			UDim2.new(1, 0, 0.3, 0),
+			Enum.EasingDirection.In,
+			Enum.EasingStyle.Back,
+			1,
+			true,
+			function()
+				self.TitleCardFrame.Visible = false
+				self.TitleCardFrame.Position = originalPos
+			end
+		)
+	end)
 end
 
 function UIController:ShowBossBar(data)
