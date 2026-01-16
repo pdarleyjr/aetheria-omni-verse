@@ -303,7 +303,7 @@ end
 function UIController:CreateActionButton(text, position, color)
 	local btn = Instance.new("TextButton")
 	btn.Size = UDim2.new(0, 80, 0, 80)
-(btn.Position = position
+	btn.Position = position
 	btn.AnchorPoint = Vector2.new(0.5, 0.5)
 	btn.BackgroundColor3 = color
 	btn.Text = text

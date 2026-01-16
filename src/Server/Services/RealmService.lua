@@ -2,6 +2,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
+local ContentProvider = game:GetService("ContentProvider")
 
 local Constants = require(ReplicatedStorage.Shared.Modules.Constants)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
@@ -14,8 +15,10 @@ RealmService.RealmInstances = {} -- [playerId] = Model
 
 -- Constants (Placeholder)
 local BUILDABLE_ITEMS = {
-	["chair_01"] = { Name = "Wooden Chair", Cost = 10 },
-	["table_01"] = { Name = "Wooden Table", Cost = 20 },
+	["chair_01"] = { Name = "Wooden Chair", Cost = 10, ModelId = "rbxassetid://0" },
+	["table_01"] = { Name = "Wooden Table", Cost = 20, ModelId = "rbxassetid://0" },
+	["lamp_01"] = { Name = "Street Lamp", Cost = 50, ModelId = "rbxassetid://0" },
+	["fountain_01"] = { Name = "Small Fountain", Cost = 100, ModelId = "rbxassetid://0" },
 }
 
 function RealmService:Init()
@@ -76,14 +79,14 @@ function RealmService:OnPlayerAdded(player: Player)
 	-- Teleport when character spawns
 	player.CharacterAdded:Connect(function(character)
 		-- Wait a brief moment for physics to initialize
-		task.wait(0.5)
+		task.wait(1) -- Increased wait time for stability
 		self:TeleportToRealm(player, player.UserId)
 	end)
 	
 	-- Teleport if character already exists
 	if player.Character then
 		task.spawn(function()
-			task.wait(0.5)
+			task.wait(1) -- Increased wait time for stability
 			self:TeleportToRealm(player, player.UserId)
 		end)
 	end
@@ -125,6 +128,9 @@ function RealmService:CreateRealmInstance(player: Player)
 	local house = Instance.new("Model")
 	house.Name = "House"
 	house.Parent = realmModel
+	
+	-- Force load assets if they were real assets
+	-- ContentProvider:PreloadAsync({house}) 
 	
 	local floor = Instance.new("Part")
 	floor.Name = "Floor"
@@ -265,7 +271,14 @@ function RealmService:TeleportToRealm(visitor: Player, ownerId: number)
 	local realmModel = self.RealmInstances[ownerId]
 	if not realmModel then
 		warn("[RealmService] Realm not found for ownerId: " .. ownerId)
-		return
+		-- Try to create it if it's the owner
+		if visitor.UserId == ownerId then
+			realmModel = self:CreateRealmInstance(visitor)
+		end
+		
+		if not realmModel then
+			return
+		end
 	end
 	
 	if visitor.Character and visitor.Character.PrimaryPart then
@@ -283,6 +296,11 @@ function RealmService:TeleportToRealm(visitor: Player, ownerId: number)
 			rootPart.AssemblyAngularVelocity = Vector3.zero
 			
 			visitor.Character:PivotTo(targetCFrame)
+			
+			-- Force character appearance update
+			if visitor.Character:FindFirstChild("Humanoid") then
+				visitor.Character.Humanoid:BuildRigFromAttachments()
+			end
 			
 			task.delay(3, function() -- Wait 3 seconds as requested
 				if rootPart and rootPart.Parent then

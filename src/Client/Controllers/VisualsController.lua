@@ -23,8 +23,18 @@ function VisualsController:Start()
 		end
 	end)
 	
+	-- Listen for LevelUp
+	local LevelUp = Remotes.GetEvent("LevelUp") -- Assuming this exists or will exist
+	if LevelUp then
+		LevelUp.OnClientEvent:Connect(function()
+			self:PlayLevelUpEffect()
+		end)
+	end
+	
 	-- Play Intro
-	self:PlayIntro()
+	task.delay(1, function()
+		self:PlayIntro()
+	end)
 end
 
 function VisualsController:PlayIntro()
@@ -38,20 +48,90 @@ function VisualsController:PlayIntro()
 	-- Cinematic Camera Sequence
 	camera.CameraType = Enum.CameraType.Scriptable
 	
-	-- Start high up
-	local startCFrame = CFrame.new(rootPart.Position + Vector3.new(0, 100, 100), rootPart.Position)
+	-- Start high up and far away
+	local startCFrame = CFrame.new(rootPart.Position + Vector3.new(0, 200, 200), rootPart.Position)
 	camera.CFrame = startCFrame
 	
+	-- Blur effect
+	local blur = Instance.new("BlurEffect")
+	blur.Size = 24
+	blur.Parent = camera
+	
 	-- Tween down to player
-	local tweenInfo = TweenInfo.new(4, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+	local tweenInfo = TweenInfo.new(6, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
 	local goal = { CFrame = CFrame.new(rootPart.Position + Vector3.new(0, 10, 20), rootPart.Position) }
 	
 	local tween = TweenService:Create(camera, tweenInfo, goal)
 	tween:Play()
 	
+	-- Fade out blur
+	TweenService:Create(blur, TweenInfo.new(5, Enum.EasingStyle.Linear), {Size = 0}):Play()
+	
 	tween.Completed:Connect(function()
 		camera.CameraType = Enum.CameraType.Custom
+		blur:Destroy()
+		
+		-- Welcome Text
+		self:ShowWelcomeText()
 	end)
+end
+
+function VisualsController:ShowWelcomeText()
+	local playerGui = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.Name = "IntroGui"
+	screenGui.Parent = playerGui
+	
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 0, 100)
+	label.Position = UDim2.new(0, 0, 0.4, 0)
+	label.BackgroundTransparency = 1
+	label.Text = "WELCOME TO THE REALM"
+	label.TextColor3 = Color3.fromRGB(255, 255, 255)
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = 48
+	label.TextTransparency = 1
+	label.Parent = screenGui
+	
+	local t1 = TweenService:Create(label, TweenInfo.new(1), {TextTransparency = 0})
+	t1:Play()
+	
+	t1.Completed:Connect(function()
+		task.wait(2)
+		local t2 = TweenService:Create(label, TweenInfo.new(1), {TextTransparency = 1})
+		t2:Play()
+		t2.Completed:Connect(function()
+			screenGui:Destroy()
+		end)
+	end)
+end
+
+function VisualsController:PlayLevelUpEffect()
+	local player = game.Players.LocalPlayer
+	local char = player.Character
+	if not char then return end
+	
+	local root = char:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+	
+	local part = Instance.new("Part")
+	part.Size = Vector3.new(5, 1, 5)
+	part.CFrame = root.CFrame * CFrame.new(0, -2, 0)
+	part.Anchored = true
+	part.CanCollide = false
+	part.Material = Enum.Material.Neon
+	part.Color = Color3.fromRGB(255, 215, 0)
+	part.Transparency = 0.5
+	part.Shape = Enum.PartType.Cylinder
+	part.Parent = Workspace
+	
+	local tween = TweenService:Create(part, TweenInfo.new(1), {
+		Size = Vector3.new(5, 20, 5),
+		Transparency = 1,
+		CFrame = root.CFrame * CFrame.new(0, 10, 0)
+	})
+	tween:Play()
+	Debris:AddItem(part, 1)
 end
 
 function VisualsController:ShakeCamera(duration, intensity)

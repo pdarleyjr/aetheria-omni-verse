@@ -16,6 +16,7 @@ function WorkspaceService:Start()
 	print("[WorkspaceService] Starting...")
 	self:GenerateGlitchSpikes()
 	self:GenerateDecor()
+	self:GenerateHubDecor()
 end
 
 function WorkspaceService:SetupLighting()
@@ -44,6 +45,54 @@ function WorkspaceService:SetupLighting()
 	local blur = Instance.new("BlurEffect")
 	blur.Size = 2
 	blur.Parent = Lighting
+	
+	local sunRays = Instance.new("SunRaysEffect")
+	sunRays.Intensity = 0.1
+	sunRays.Spread = 0.8
+	sunRays.Parent = Lighting
+end
+
+function WorkspaceService:GenerateHubDecor()
+	-- Create a safe zone/hub area at 0,0,0 if it doesn't exist
+	local hubFolder = Instance.new("Folder")
+	hubFolder.Name = "HubDecor"
+	hubFolder.Parent = Workspace
+	
+	-- Central Plaza
+	local plaza = Instance.new("Part")
+	plaza.Name = "PlazaFloor"
+	plaza.Size = Vector3.new(100, 1, 100)
+	plaza.Position = Vector3.new(0, 0, 0)
+	plaza.Anchored = true
+	plaza.Material = Enum.Material.SmoothPlastic
+	plaza.Color = Color3.fromRGB(200, 200, 220)
+	plaza.Parent = hubFolder
+	
+	-- Decorative Pillars
+	for i = 0, 7 do
+		local angle = (i / 8) * math.pi * 2
+		local radius = 40
+		local x = math.cos(angle) * radius
+		local z = math.sin(angle) * radius
+		
+		local pillar = Instance.new("Part")
+		pillar.Name = "HubPillar"
+		pillar.Size = Vector3.new(4, 20, 4)
+		pillar.Position = Vector3.new(x, 10, z)
+		pillar.Anchored = true
+		pillar.Material = Enum.Material.Marble
+		pillar.Color = Color3.fromRGB(240, 240, 255)
+		pillar.Parent = hubFolder
+		
+		-- Glowing top
+		local light = Instance.new("PointLight")
+		light.Color = Color3.fromRGB(100, 200, 255)
+		light.Range = 20
+		light.Brightness = 2
+		light.Parent = pillar
+	end
+	
+	print("[WorkspaceService] Generated Hub Decor")
 end
 
 function WorkspaceService:GenerateDecor()
