@@ -60,6 +60,24 @@ function Remotes.Init()
 	_functions["AcceptQuest"] = createRemote("AcceptQuest", "RemoteFunction")
 	_functions["CompleteQuest"] = createRemote("CompleteQuest", "RemoteFunction")
 	
+	-- Vehicle Remotes
+	_events["SpawnVehicle"] = createRemote("SpawnVehicle", "RemoteEvent")
+	
+	-- Fishing Remotes
+	_events["CastLine"] = createRemote("CastLine", "RemoteEvent")
+	_events["CatchFish"] = createRemote("CatchFish", "RemoteEvent")
+	
+	-- Trade Remotes
+	_events["TradeEvent"] = createRemote("TradeEvent", "RemoteEvent")
+	_functions["RequestTrade"] = createRemote("RequestTrade", "RemoteFunction")
+	_functions["TradeFunction"] = createRemote("TradeFunction", "RemoteFunction")
+	
+	-- LiveOps Remotes
+	_events["Announcement"] = createRemote("Announcement", "RemoteEvent")
+	
+	-- Breeding Remotes
+	_functions["BreedSpirits"] = createRemote("BreedSpirits", "RemoteFunction")
+	
 	print("✓ All Remote Events created")
 end
 

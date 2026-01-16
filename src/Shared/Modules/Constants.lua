@@ -150,6 +150,37 @@ Constants.ZONES = {
 		BaseColor = Color3.fromRGB(20, 0, 20),
 		PlatformColor = Color3.fromRGB(40, 0, 40),
 		AtmosphereColor = Color3.fromRGB(100, 0, 100)
+	},
+	["Azure Sea"] = {
+		Center = Vector3.new(0, 5, 50),
+		Size = Vector3.new(500, 50, 500),
+		BaseColor = Color3.fromRGB(0, 100, 255),
+		PlatformColor = Color3.fromRGB(0, 80, 200),
+		AtmosphereColor = Color3.fromRGB(150, 200, 255)
+	}
+}
+
+Constants.VEHICLES = {
+	Skiff = {
+		Name = "Skiff",
+		Speed = 50,
+		TurnSpeed = 2,
+		Model = "SkiffModel"
+	}
+}
+
+Constants.FISH = {
+	NeonGuppy = {
+		Name = "Neon Guppy",
+		Rarity = "Common",
+		Value = 10,
+		Difficulty = 1
+	},
+	VoidBass = {
+		Name = "Void Bass",
+		Rarity = "Rare",
+		Value = 50,
+		Difficulty = 3
 	}
 }
 
@@ -172,7 +203,44 @@ Constants.BOSSES = {
 			Spike = { Damage = 30, Range = 20, Cooldown = 5 },
 			Corruption = { Damage = 10, Range = 100, Cooldown = 8, Duration = 5 }
 		}
+	},
+	GlitchOverlord = {
+		Name = "Glitch Overlord",
+		Health = 10000,
+		Damage = 50,
+		Model = "GlitchOverlord",
+		Rewards = {
+			Essence = 1000,
+			Aether = 100,
+			Exp = 2000
+		},
+		Phases = {
+			{ Threshold = 1.0, Name = "Normal" }
+		},
+		Attacks = {
+			Spike = { Damage = 40, Range = 25, Cooldown = 4 }
+		}
 	}
+}
+
+Constants.ITEMS = {
+	SpiritIncubator = {
+		Id = "SpiritIncubator",
+		Name = "Spirit Incubator",
+		Description = "A device used to incubate Spirit eggs and facilitate breeding.",
+		Type = "Furniture",
+		Rarity = "Rare",
+		MaxStack = 1
+	}
+}
+
+Constants.PRODUCTS = {
+	SpiritKeys = 12345678, -- Placeholder
+	BlueprintPack = 87654321, -- Placeholder
+}
+
+Constants.GAMEPASSES = {
+	OmniPass = 11223344, -- Placeholder
 }
 
 Constants.SKILLS = {
@@ -206,6 +274,20 @@ Constants.LEVELING = {
 	MAX_LEVEL = 100,
 	BASE_EXP = 100, -- XP needed for level 2
 	EXP_EXPONENT = 1.5, -- Curve factor
+}
+
+Constants.REALM_ACCESS = {
+	PRIVATE = "Private",
+	FRIENDS = "Friends",
+	PUBLIC = "Public"
+}
+
+Constants.CLANS = {
+	CREATION_COST = {
+		Currency = "Essence",
+		Amount = 1000
+	},
+	MAX_MEMBERS = 50
 }
 
 return Constants

@@ -8,6 +8,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
+local ContextActionService = game:GetService("ContextActionService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
@@ -31,7 +32,7 @@ UIController.Maid = Maid.new()
 -- Theme Constants
 local THEME = {
 	GLASS_COLOR = Color3.fromRGB(20, 20, 35),
-	GLASS_TRANSPARENCY = 0.25,
+	GLASS_TRANSPARENCY = 0.4,
 	ACCENT_COLOR = Color3.fromRGB(0, 170, 255),
 	TEXT_COLOR = Color3.fromRGB(255, 255, 255),
 	FONT = Enum.Font.GothamBold,
@@ -67,6 +68,12 @@ function UIController:Init()
 	
 	BossDefeated.OnClientEvent:Connect(function()
 		self:HideBossBar()
+	end)
+	
+	-- Announcement Event
+	local Announcement = Remotes.GetEvent("Announcement")
+	Announcement.OnClientEvent:Connect(function(message, color)
+		self:DisplayAnnouncement(message, color)
 	end)
 	
 	QuestUpdate.OnClientEvent:Connect(function(data)
@@ -136,30 +143,35 @@ function UIController:CreateHUD()
 	-- 1.99 Dialogue Frame
 	self:CreateDialogueFrame(screenGui)
 	
-	-- 2. Combat Controls (Bottom Right)
-	local combatFrame = Instance.new("Frame")
+	-- 2. Combat Controls (Bottom Right) - Mobile/Action Buttons
+	-- Using Glassmorphism as requested
+	local combatFrame = self:CreateGlassPanel(UDim2.new(0, 250, 0, 250), UDim2.new(1, -20, 1, -20))
 	combatFrame.Name = "CombatControls"
-	combatFrame.Size = UDim2.new(0, 200, 0, 200)
-	combatFrame.Position = UDim2.new(1, -220, 1, -220)
-	combatFrame.BackgroundTransparency = 1
+	combatFrame.AnchorPoint = Vector2.new(1, 1)
+	combatFrame.BackgroundColor3 = Color3.new(0, 0, 0)
+	combatFrame.BackgroundTransparency = 0.3
 	combatFrame.Parent = screenGui
 	
-	-- Attack Button
-	local attackBtn = self:CreateActionButton("⚔️", UDim2.new(0.5, 0, 0.5, 0), Color3.fromRGB(255, 80, 80))
+	-- Attack Button (Large)
+	local attackBtn = self:CreateActionButton("⚔️", UDim2.new(1, -10, 1, -10), Color3.fromRGB(255, 80, 80))
+	attackBtn.Size = UDim2.new(0, 90, 0, 90)
+	attackBtn.AnchorPoint = Vector2.new(1, 1)
 	attackBtn.Parent = combatFrame
 	
-	-- Ability 1
-	local ability1Btn = self:CreateActionButton("1", UDim2.new(0, 0, 0.5, 0), THEME.ACCENT_COLOR)
-	ability1Btn.Size = UDim2.new(0, 60, 0, 60)
+	-- Ability 1 (Left of Attack)
+	local ability1Btn = self:CreateActionButton("1", UDim2.new(1, -110, 1, -10), THEME.ACCENT_COLOR)
+	ability1Btn.Size = UDim2.new(0, 70, 0, 70)
+	ability1Btn.AnchorPoint = Vector2.new(1, 1)
 	ability1Btn.Parent = combatFrame
 	
 	ability1Btn.Activated:Connect(function()
 		self:UseSkill("Fireball")
 	end)
 	
-	-- Ability 2
-	local ability2Btn = self:CreateActionButton("2", UDim2.new(1, 0, 0.5, 0), THEME.ACCENT_COLOR)
-	ability2Btn.Size = UDim2.new(0, 60, 0, 60)
+	-- Ability 2 (Above Attack)
+	local ability2Btn = self:CreateActionButton("2", UDim2.new(1, -10, 1, -110), THEME.ACCENT_COLOR)
+	ability2Btn.Size = UDim2.new(0, 70, 0, 70)
+	ability2Btn.AnchorPoint = Vector2.new(1, 1)
 	ability2Btn.Parent = combatFrame
 	
 	ability2Btn.Activated:Connect(function()
@@ -171,17 +183,28 @@ function UIController:CreateHUD()
 		self:OnAttackPressed()
 	end)
 	
-	-- Mobile/PC Input binding
-	UserInputService.InputBegan:Connect(function(input, processed)
-		if processed then return end
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.KeyCode == Enum.KeyCode.Space then
-			self:OnAttackPressed()
-		elseif input.KeyCode == Enum.KeyCode.One then
-			self:UseSkill("Fireball")
-		elseif input.KeyCode == Enum.KeyCode.Two then
-			self:UseSkill("Dash")
+	-- ContextActionService Binding
+	local function handleAction(actionName, inputState, inputObject)
+		if inputState == Enum.UserInputState.Begin then
+			if actionName == "Attack" then
+				self:OnAttackPressed()
+			elseif actionName == "Skill1" then
+				self:UseSkill("Fireball")
+			elseif actionName == "Skill2" then
+				self:UseSkill("Dash")
+			end
 		end
-	end)
+	end
+
+	local attackInputs = {Enum.KeyCode.Space, Enum.KeyCode.ButtonR2}
+	-- Only bind MouseButton1 if not on mobile to prevent conflict with camera rotation
+	if not UserInputService.TouchEnabled then
+		table.insert(attackInputs, Enum.UserInputType.MouseButton1)
+	end
+
+	ContextActionService:BindAction("Attack", handleAction, false, unpack(attackInputs))
+	ContextActionService:BindAction("Skill1", handleAction, false, Enum.KeyCode.One, Enum.KeyCode.ButtonX)
+	ContextActionService:BindAction("Skill2", handleAction, false, Enum.KeyCode.Two, Enum.KeyCode.ButtonY)
 end
 
 function UIController:CreateZoneLabel(parent)
@@ -681,6 +704,38 @@ function UIController:ShowTitleCard(bossName)
 				self.TitleCardFrame.Position = originalPos
 			end
 		)
+	end)
+end
+
+function UIController:DisplayAnnouncement(message, color)
+	local screenGui = self.ScreenGui
+	if not screenGui then return end
+	
+	local label = Instance.new("TextLabel")
+	label.Name = "Announcement"
+	label.Size = UDim2.new(1, 0, 0, 80)
+	label.Position = UDim2.new(0, 0, 0.15, 0)
+	label.BackgroundTransparency = 1
+	label.Text = message
+	label.TextColor3 = color or Color3.fromRGB(255, 255, 255)
+	label.Font = Enum.Font.SciFi
+	label.TextScaled = true
+	label.TextStrokeTransparency = 0
+	label.Parent = screenGui
+	
+	-- Animate
+	label.TextTransparency = 1
+	label.TextStrokeTransparency = 1
+	
+	local t1 = TweenService:Create(label, TweenInfo.new(0.5), {TextTransparency = 0, TextStrokeTransparency = 0})
+	t1:Play()
+	
+	task.delay(5, function()
+		local t2 = TweenService:Create(label, TweenInfo.new(0.5), {TextTransparency = 1, TextStrokeTransparency = 1})
+		t2:Play()
+		t2.Completed:Connect(function()
+			label:Destroy()
+		end)
 	end)
 end
 

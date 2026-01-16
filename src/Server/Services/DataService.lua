@@ -24,7 +24,14 @@ local PROFILE_TEMPLATE = {
 		EXP = 0,
 		PlayTime = 0,
 	},
-	Inventory = {}, -- Empty table
+	Inventory = {
+		Spirits = {},
+		Items = {},
+		Escrow = { -- Items currently in active trade
+			Spirits = {},
+			Items = {}
+		}
+	}, 
 }
 
 local ProfileStore = ProfileService.GetProfileStore("PlayerData_Test_001", PROFILE_TEMPLATE)
@@ -48,6 +55,20 @@ local function PlayerAdded(player: Player)
 		
 		if player:IsDescendantOf(Players) then
 			Profiles[player] = profile
+			
+			-- Restore any items stuck in Escrow from previous session (crash recovery)
+			local data = profile.Data
+			if data.Inventory.Escrow then
+				for category, items in pairs(data.Inventory.Escrow) do
+					if not data.Inventory[category] then data.Inventory[category] = {} end
+					for itemId, item in pairs(items) do
+						data.Inventory[category][itemId] = item
+						items[itemId] = nil
+						print("[DataService] Restored item from Escrow:", itemId)
+					end
+				end
+			end
+			
 			print("[DataService] Profile loaded for " .. player.Name)
 			DataService.UpdateClientHUD(player)
 		else
@@ -108,6 +129,99 @@ end
 
 function DataService.AddEssence(player: Player, amount: number)
 	return DataService.AddCurrency(player, "Essence", amount)
+end
+
+function DataService.MoveToEscrow(player: Player, category: string, itemId: string)
+	local data = DataService.GetData(player)
+	if not data then return false end
+	
+	local inventory = data.Inventory
+	if not inventory[category] then return false end
+	
+	local item = inventory[category][itemId]
+	if not item then return false end
+	
+	-- Check if equipped (specific to Spirits)
+	if category == "Spirits" and inventory.EquippedSpirit == itemId then
+		return false -- Cannot trade equipped spirit
+	end
+	
+	-- Initialize Escrow category if missing
+	if not inventory.Escrow then inventory.Escrow = { Spirits = {}, Items = {} } end
+	if not inventory.Escrow[category] then inventory.Escrow[category] = {} end
+	
+	-- Move item
+	inventory.Escrow[category][itemId] = item
+	inventory[category][itemId] = nil
+	
+	DataService.UpdateClientHUD(player)
+	return true
+end
+
+function DataService.RestoreFromEscrow(player: Player, category: string, itemId: string)
+	local data = DataService.GetData(player)
+	if not data then return false end
+	
+	local inventory = data.Inventory
+	if not inventory.Escrow or not inventory.Escrow[category] then return false end
+	
+	local item = inventory.Escrow[category][itemId]
+	if not item then return false end
+	
+	-- Move back
+	inventory[category][itemId] = item
+	inventory.Escrow[category][itemId] = nil
+	
+	DataService.UpdateClientHUD(player)
+	return true
+end
+
+function DataService.ExecuteTrade(playerA: Player, playerB: Player, offerA: any, offerB: any)
+	local dataA = DataService.GetData(playerA)
+	local dataB = DataService.GetData(playerB)
+	
+	if not dataA or not dataB then return false end
+	
+	-- Verify all items are still in Escrow
+	for category, items in pairs(offerA) do
+		for itemId, _ in pairs(items) do
+			if not dataA.Inventory.Escrow[category][itemId] then return false end
+		end
+	end
+	for category, items in pairs(offerB) do
+		for itemId, _ in pairs(items) do
+			if not dataB.Inventory.Escrow[category][itemId] then return false end
+		end
+	end
+	
+	-- Execute Swap
+	-- Move A's items to B
+	for category, items in pairs(offerA) do
+		for itemId, _ in pairs(items) do
+			local itemData = dataA.Inventory.Escrow[category][itemId]
+			dataA.Inventory.Escrow[category][itemId] = nil
+			
+			-- Add to B
+			if not dataB.Inventory[category] then dataB.Inventory[category] = {} end
+			dataB.Inventory[category][itemId] = itemData
+		end
+	end
+	
+	-- Move B's items to A
+	for category, items in pairs(offerB) do
+		for itemId, _ in pairs(items) do
+			local itemData = dataB.Inventory.Escrow[category][itemId]
+			dataB.Inventory.Escrow[category][itemId] = nil
+			
+			-- Add to A
+			if not dataA.Inventory[category] then dataA.Inventory[category] = {} end
+			dataA.Inventory[category][itemId] = itemData
+		end
+	end
+	
+	DataService.UpdateClientHUD(playerA)
+	DataService.UpdateClientHUD(playerB)
+	return true
 end
 
 -- // INITIALIZATION //

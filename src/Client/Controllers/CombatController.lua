@@ -25,13 +25,7 @@ end
 function CombatController:Start()
 	print("[CombatController] Starting...")
 	
-	UserInputService.InputBegan:Connect(function(input, gameProcessed)
-		if gameProcessed then return end
-		
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			self:AttemptAttack()
-		end
-	end)
+	-- Input handling moved to UIController/ContextActionService
 end
 
 function CombatController:ShowDamageNumber(targetPart, damage, isCritical)

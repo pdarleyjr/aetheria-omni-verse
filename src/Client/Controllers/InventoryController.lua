@@ -56,6 +56,20 @@ end
 function InventoryController:CreateInventoryUI(parent)
 	local frame = Instance.new("Frame")
 	frame.Name = "InventoryFrame"
+	
+	-- Glassmorphism Style
+	frame.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
+	frame.BackgroundTransparency = 0.4
+	frame.BorderSizePixel = 0
+	
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.new(1, 1, 1)
+	stroke.Transparency = 0.8
+	stroke.Parent = frame
+	
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 12)
+	corner.Parent = frame
 	frame.Size = UDim2.new(0, 400, 0, 300)
 	frame.Position = UDim2.new(0.5, -200, 0.5, -150)
 	frame.BackgroundColor3 = Color3.fromRGB(30, 30, 45)

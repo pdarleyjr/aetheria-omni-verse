@@ -12,6 +12,9 @@ local DataService = require(script.Parent.DataService)
 
 local RealmService = {}
 RealmService.RealmInstances = {} -- [playerId] = Model
+RealmService.RealmAccess = {} -- [ownerId] = AccessLevel
+RealmService.RealmOccupants = {} -- [ownerId] = count
+RealmService.PlayerCurrentRealm = {} -- [playerId] = ownerId
 
 -- Constants (Placeholder)
 local BUILDABLE_ITEMS = {
@@ -37,6 +40,10 @@ function RealmService:Start()
 	
 	Players.PlayerAdded:Connect(function(player)
 		self:OnPlayerAdded(player)
+	end)
+	
+	Players.PlayerRemoving:Connect(function(player)
+		self:OnPlayerRemoving(player)
 	end)
 	
 	for _, player in ipairs(Players:GetPlayers()) do
@@ -74,6 +81,10 @@ function RealmService:OnPlayerAdded(player: Player)
 		}
 	end
 	
+	-- Default Access Level
+	self.RealmAccess[player.UserId] = Constants.REALM_ACCESS.FRIENDS
+	self.RealmOccupants[player.UserId] = 0
+	
 	self:CreateRealmInstance(player)
 	
 	-- Teleport when character spawns
@@ -90,6 +101,64 @@ function RealmService:OnPlayerAdded(player: Player)
 			self:TeleportToRealm(player, player.UserId)
 		end)
 	end
+end
+
+function RealmService:OnPlayerRemoving(player: Player)
+	-- Remove from current realm tracking
+	local currentRealmOwner = self.PlayerCurrentRealm[player.UserId]
+	if currentRealmOwner and self.RealmOccupants[currentRealmOwner] then
+		self.RealmOccupants[currentRealmOwner] = math.max(0, self.RealmOccupants[currentRealmOwner] - 1)
+	end
+	self.PlayerCurrentRealm[player.UserId] = nil
+	
+	-- Clean up own realm tracking
+	self.RealmAccess[player.UserId] = nil
+	self.RealmOccupants[player.UserId] = nil
+	
+	-- Cleanup instance if needed (optional, keeping for persistence in session)
+end
+
+function RealmService:SetAccessLevel(player: Player, level: string)
+	if level == Constants.REALM_ACCESS.PRIVATE or 
+	   level == Constants.REALM_ACCESS.FRIENDS or 
+	   level == Constants.REALM_ACCESS.PUBLIC then
+		self.RealmAccess[player.UserId] = level
+		print("[RealmService] Set access level for " .. player.Name .. " to " .. level)
+	end
+end
+
+function RealmService:JoinRealm(player: Player, targetPlayerId: number)
+	local access = self.RealmAccess[targetPlayerId] or Constants.REALM_ACCESS.FRIENDS
+	local canJoin = false
+	
+	if player.UserId == targetPlayerId then
+		canJoin = true
+	elseif access == Constants.REALM_ACCESS.PUBLIC then
+		canJoin = true
+	elseif access == Constants.REALM_ACCESS.FRIENDS then
+		if player:IsFriendsWith(targetPlayerId) then
+			canJoin = true
+		end
+	elseif access == Constants.REALM_ACCESS.PRIVATE then
+		canJoin = false
+	end
+	
+	if canJoin then
+		self:TeleportToRealm(player, targetPlayerId)
+	else
+		warn("[RealmService] Access Denied to realm of " .. targetPlayerId)
+	end
+end
+
+function RealmService:GetXPMultiplier(player: Player)
+	local currentRealmOwner = self.PlayerCurrentRealm[player.UserId]
+	if currentRealmOwner then
+		local count = self.RealmOccupants[currentRealmOwner] or 0
+		if count >= 3 then
+			return 1.1 -- 10% bonus
+		end
+	end
+	return 1.0
 end
 
 function RealmService:CreateRealmInstance(player: Player)
@@ -314,6 +383,19 @@ function RealmService:TeleportToRealm(visitor: Player, ownerId: number)
 		if not realmModel then
 			return
 		end
+	end
+	
+	-- Update Occupancy
+	local previousRealmOwner = self.PlayerCurrentRealm[visitor.UserId]
+	if previousRealmOwner and previousRealmOwner ~= ownerId then
+		if self.RealmOccupants[previousRealmOwner] then
+			self.RealmOccupants[previousRealmOwner] = math.max(0, self.RealmOccupants[previousRealmOwner] - 1)
+		end
+	end
+	
+	if previousRealmOwner ~= ownerId then
+		self.PlayerCurrentRealm[visitor.UserId] = ownerId
+		self.RealmOccupants[ownerId] = (self.RealmOccupants[ownerId] or 0) + 1
 	end
 	
 	if visitor.Character and visitor.Character.PrimaryPart then
