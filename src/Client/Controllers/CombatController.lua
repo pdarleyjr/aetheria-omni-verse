@@ -16,53 +16,12 @@ function CombatController:Init()
 	print("[CombatController] Initializing...")
 	
 	self.RequestAttack = Remotes.GetEvent("RequestAttack")
-	local showDamageRemote = Remotes.GetEvent("ShowDamage")
-	showDamageRemote.OnClientEvent:Connect(function(targetPart, damage, isCritical)
-		self:ShowDamageNumber(targetPart, damage, isCritical)
-	end)
 end
 
 function CombatController:Start()
 	print("[CombatController] Starting...")
 	
 	-- Input handling moved to UIController/ContextActionService
-end
-
-function CombatController:ShowDamageNumber(targetPart, damage, isCritical)
-	if not targetPart then return end
-	
-	local billboard = Instance.new("BillboardGui")
-	billboard.Name = "DamageNumber"
-	billboard.Adornee = targetPart
-	billboard.Size = UDim2.new(0, 100, 0, 50)
-	billboard.StudsOffset = Vector3.new(0, 2, 0)
-	billboard.AlwaysOnTop = true
-	
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(1, 0, 1, 0)
-	label.BackgroundTransparency = 1
-	label.Text = "-" .. tostring(damage)
-	label.TextColor3 = isCritical and Color3.fromRGB(255, 50, 50) or Color3.fromRGB(255, 255, 255)
-	label.TextStrokeTransparency = 0
-	label.Font = Enum.Font.GothamBold
-	label.TextSize = isCritical and 24 or 18
-	label.Parent = billboard
-	
-	billboard.Parent = Players.LocalPlayer.PlayerGui
-	
-	-- Animation
-	local tweenInfo = TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	local goal = { StudsOffset = Vector3.new(0, 5, 0) }
-	local tween = TweenService:Create(billboard, tweenInfo, goal)
-	
-	local fadeTween = TweenService:Create(label, tweenInfo, { TextTransparency = 1, TextStrokeTransparency = 1 })
-	
-	tween:Play()
-	fadeTween:Play()
-	
-	task.delay(1, function()
-		billboard:Destroy()
-	end)
 end
 
 function CombatController:AttemptAttack(overrideTarget)

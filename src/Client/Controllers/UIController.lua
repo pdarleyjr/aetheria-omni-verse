@@ -51,6 +51,7 @@ function UIController:Init()
 	self.RequestSkill = Remotes.GetEvent("RequestSkill")
 	self.TeleportToHub = Remotes.GetEvent("TeleportToHub")
 	self.SpawnVehicle = Remotes.GetEvent("SpawnVehicle")
+	self.BuyItemFunc = Remotes.GetFunction("BuyItem")
 	
 	-- Boss Events
 	local BossSpawned = Remotes.GetEvent("BossSpawned")
@@ -131,6 +132,9 @@ function UIController:CreateHUD()
 	
 	-- 1.5 Menu Buttons (Left Side)
 	self:CreateMenuButtons(screenGui)
+	
+	-- 1.55 Shop UI
+	self:CreateShopUI(screenGui)
 	
 	-- 1.6 Context Buttons (Right Side, above combat)
 	self:CreateContextButtons(screenGui)
@@ -320,7 +324,12 @@ function UIController:ShowWelcomePopup()
 	closeBtn.Parent = frame
 	
 	closeBtn.Activated:Connect(function()
-		frame:Destroy()
+		-- Tween out
+		local t = TweenService:Create(frame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
+		t:Play()
+		t.Completed:Connect(function()
+			frame:Destroy()
+		end)
 	end)
 end
 
@@ -717,15 +726,153 @@ function UIController:CreateMenuButtons(parent)
 		end
 	end)
 	
+	-- Shop Button
+	local shopBtn = self:CreateActionButton("🛒", UDim2.new(0, 0, 0, 0), Color3.fromRGB(200, 150, 50))
+	shopBtn.Size = UDim2.new(0, 50, 0, 50)
+	shopBtn.LayoutOrder = 2
+	shopBtn.Parent = frame
+	
+	shopBtn.Activated:Connect(function()
+		self:ToggleShop()
+	end)
+	
 	-- Hub Button
 	local hubBtn = self:CreateActionButton("🏠", UDim2.new(0, 0, 0, 0), Color3.fromRGB(50, 150, 100))
 	hubBtn.Size = UDim2.new(0, 50, 0, 50)
-	hubBtn.LayoutOrder = 2
+	hubBtn.LayoutOrder = 3
 	hubBtn.Parent = frame
 	
 	hubBtn.Activated:Connect(function()
 		self.TeleportToHub:FireServer()
 	end)
+end
+
+function UIController:CreateShopUI(parent)
+	local frame = self:CreateGlassPanel(UDim2.new(0, 300, 0, 400), UDim2.new(0.5, -150, 0.5, -200))
+	frame.Name = "ShopFrame"
+	frame.Visible = false
+	frame.Parent = parent
+	self.ShopFrame = frame
+	
+	-- Title
+	local title = Instance.new("TextLabel")
+	title.Size = UDim2.new(1, 0, 0, 50)
+	title.BackgroundTransparency = 1
+	title.Text = "SHOP"
+	title.TextColor3 = THEME.ACCENT_COLOR
+	title.Font = THEME.FONT
+	title.TextSize = 24
+	title.Parent = frame
+	
+	-- Close Button
+	local closeBtn = Instance.new("TextButton")
+	closeBtn.Size = UDim2.new(0, 30, 0, 30)
+	closeBtn.Position = UDim2.new(1, -35, 0, 5)
+	closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+	closeBtn.Text = "X"
+	closeBtn.TextColor3 = Color3.new(1, 1, 1)
+	closeBtn.Font = THEME.FONT
+	closeBtn.TextSize = 18
+	closeBtn.Parent = frame
+	
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 4)
+	corner.Parent = closeBtn
+	
+	closeBtn.Activated:Connect(function()
+		self:ToggleShop()
+	end)
+	
+	-- Items List
+	local list = Instance.new("ScrollingFrame")
+	list.Size = UDim2.new(1, -20, 1, -60)
+	list.Position = UDim2.new(0, 10, 0, 50)
+	list.BackgroundTransparency = 1
+	list.BorderSizePixel = 0
+	list.Parent = frame
+	
+	local layout = Instance.new("UIListLayout")
+	layout.Padding = UDim.new(0, 5)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Parent = list
+	
+	-- Basic Sword Item
+	self:CreateShopItem(list, "Basic Sword", 50, "Essence")
+end
+
+function UIController:CreateShopItem(parent, name, cost, currency)
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(1, 0, 0, 60)
+	frame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+	frame.BackgroundTransparency = 0.5
+	frame.Parent = parent
+	
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = frame
+	
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Size = UDim2.new(0.6, 0, 0.5, 0)
+	nameLabel.Position = UDim2.new(0, 10, 0, 5)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Text = name
+	nameLabel.TextColor3 = Color3.new(1, 1, 1)
+	nameLabel.Font = THEME.FONT
+	nameLabel.TextSize = 16
+	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+	nameLabel.Parent = frame
+	
+	local costLabel = Instance.new("TextLabel")
+	costLabel.Size = UDim2.new(0.6, 0, 0.5, 0)
+	costLabel.Position = UDim2.new(0, 10, 0.5, 0)
+	costLabel.BackgroundTransparency = 1
+	costLabel.Text = tostring(cost) .. " " .. currency
+	costLabel.TextColor3 = Color3.fromRGB(200, 200, 100)
+	costLabel.Font = Enum.Font.Gotham
+	costLabel.TextSize = 14
+	costLabel.TextXAlignment = Enum.TextXAlignment.Left
+	costLabel.Parent = frame
+	
+	local buyBtn = Instance.new("TextButton")
+	buyBtn.Size = UDim2.new(0, 80, 0, 40)
+	buyBtn.Position = UDim2.new(1, -90, 0.5, -20)
+	buyBtn.BackgroundColor3 = THEME.ACCENT_COLOR
+	buyBtn.Text = "BUY"
+	buyBtn.TextColor3 = Color3.new(1, 1, 1)
+	buyBtn.Font = THEME.FONT
+	buyBtn.TextSize = 14
+	buyBtn.Parent = frame
+	
+	local btnCorner = Instance.new("UICorner")
+	btnCorner.CornerRadius = UDim.new(0, 4)
+	btnCorner.Parent = buyBtn
+	
+	buyBtn.Activated:Connect(function()
+		local success, msg = self.BuyItemFunc:InvokeServer(name)
+		if success then
+			self:DisplayAnnouncement("Purchased " .. name .. "!", Color3.fromRGB(0, 255, 0))
+		else
+			self:DisplayAnnouncement(msg or "Purchase Failed", Color3.fromRGB(255, 50, 50))
+		end
+	end)
+end
+
+function UIController:ToggleShop()
+	if not self.ShopFrame then return end
+	
+	self.ShopFrame.Visible = not self.ShopFrame.Visible
+	
+	if self.ShopFrame.Visible then
+		-- Pop in animation
+		self.ShopFrame.Size = UDim2.new(0, 0, 0, 0)
+		self.ShopFrame:TweenSize(
+			UDim2.new(0, 300, 0, 400),
+			Enum.EasingDirection.Out,
+			Enum.EasingStyle.Back,
+			0.3,
+			true
+		)
+	end
 end
 
 function UIController:CreateContextButtons(parent)
