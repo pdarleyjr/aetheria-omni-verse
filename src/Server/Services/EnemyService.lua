@@ -42,12 +42,10 @@ function EnemyService:Start()
 				-- Spawn in Glitch Wastes (The Wilds: Z 150-350)
 				local zone = Constants.ZONES["Glitch Wastes"]
 				if zone then
-					local center = zone.Center
-					local size = zone.Size
-					
-					local x = center.X + math.random(-size.X/2, size.X/2)
+					-- Updated Spawn Coordinates for Platform Extension
+					local x = math.random(-50, 50)
 					local z = math.random(150, 350)
-					local spawnPos = Vector3.new(x, center.Y + 5, z)
+					local spawnPos = Vector3.new(x, 5, z)
 					
 					self:SpawnEnemy("Glitch Slime", spawnPos)
 				end
@@ -65,8 +63,8 @@ function EnemyService:Start()
 			if not bossExists then
 				local zone = Constants.ZONES["Glitch Wastes"]
 				if zone then
-					-- Spawn boss at specific position (The Throne: Z=500)
-					self:SpawnBoss("Glitch King", Vector3.new(0, 15, 500))
+					-- Spawn boss at specific position (The Throne: Z=450)
+					self:SpawnBoss("Glitch King", Vector3.new(0, 5, 450))
 				end
 			end
 			

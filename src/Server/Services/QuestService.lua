@@ -10,6 +10,24 @@ QuestService.ActiveQuests = {} -- [playerId] = { QuestId = "Tutorial", Progress 
 
 -- Quest Definitions
 local QUESTS = {
+	["WelcomeQuest"] = {
+		Title = "Welcome to Aetheria",
+		Description = "The world is glitching. Prepare yourself.",
+		Tasks = {
+			{
+				Id = "explore_hub",
+				Type = "Visit",
+				Target = "Hub",
+				Required = 1,
+				Description = "Explore the Hub"
+			}
+		},
+		Rewards = {
+			Exp = 50,
+			Currencies = { Essence = 50 },
+			Items = {}
+		}
+	},
 	["Tutorial"] = {
 		Title = "First Steps",
 		Description = "Welcome to the Realm. Follow the guide's instructions.",
@@ -68,10 +86,10 @@ function QuestService:OnPlayerAdded(player: Player)
 	-- For now, we always assign the tutorial if not active
 	
 	task.wait(2) -- Wait for client to load
-	self:AssignQuest(player, "Tutorial")
+	self:AssignQuest(player, "WelcomeQuest")
 	
 	-- Auto-complete first step for now
-	self:ProgressTask(player, "talk_guide", 1)
+	-- self:ProgressTask(player, "talk_guide", 1)
 end
 
 function QuestService:AssignQuest(player: Player, questId: string)

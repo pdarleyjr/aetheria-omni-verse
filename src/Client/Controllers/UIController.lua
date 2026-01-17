@@ -98,6 +98,9 @@ end
 function UIController:Start()
 	print("[UIController] Starting...")
 	
+	-- Show Welcome Popup
+	self:ShowWelcomePopup()
+	
 	-- Zone Check Loop
 	task.spawn(function()
 		while true do
@@ -147,6 +150,9 @@ function UIController:CreateHUD()
 	-- 1.99 Dialogue Frame
 	self:CreateDialogueFrame(screenGui)
 	
+	-- 2.0 Bottom Center HUD (Health & Essence)
+	self:CreateBottomHUD(screenGui)
+
 	-- 2. Combat Controls (Bottom Right) - Mobile/Action Buttons
 	-- Using Glassmorphism as requested
 	local combatFrame = self:CreateGlassPanel(UDim2.new(0, 250, 0, 250), UDim2.new(1, -20, 1, -20))
@@ -209,6 +215,113 @@ function UIController:CreateHUD()
 	ContextActionService:BindAction("Attack", handleAction, false, unpack(attackInputs))
 	ContextActionService:BindAction("Skill1", handleAction, false, Enum.KeyCode.One, Enum.KeyCode.ButtonX)
 	ContextActionService:BindAction("Skill2", handleAction, false, Enum.KeyCode.Two, Enum.KeyCode.ButtonY)
+end
+
+function UIController:CreateBottomHUD(parent)
+	local frame = self:CreateGlassPanel(UDim2.new(0, 300, 0, 80), UDim2.new(0.5, -150, 1, -100))
+	frame.Name = "BottomHUD"
+	frame.Parent = parent
+	self.BottomHUDFrame = frame
+
+	-- Health Bar Background
+	local healthBg = Instance.new("Frame")
+	healthBg.Name = "HealthBg"
+	healthBg.Size = UDim2.new(0.9, 0, 0, 20)
+	healthBg.Position = UDim2.new(0.05, 0, 0.2, 0)
+	healthBg.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	healthBg.BorderSizePixel = 0
+	healthBg.Parent = frame
+	
+	local healthCorner = Instance.new("UICorner")
+	healthCorner.CornerRadius = UDim.new(0, 4)
+	healthCorner.Parent = healthBg
+
+	-- Health Bar Fill
+	local healthFill = Instance.new("Frame")
+	healthFill.Name = "HealthFill"
+	healthFill.Size = UDim2.new(1, 0, 1, 0)
+	healthFill.BackgroundColor3 = Color3.fromRGB(0, 255, 100) -- Green
+	healthFill.BorderSizePixel = 0
+	healthFill.Parent = healthBg
+	
+	local fillCorner = Instance.new("UICorner")
+	fillCorner.CornerRadius = UDim.new(0, 4)
+	fillCorner.Parent = healthFill
+	self.HealthBarFill = healthFill
+
+	-- Essence Label
+	local essenceLabel = Instance.new("TextLabel")
+	essenceLabel.Name = "EssenceLabel"
+	essenceLabel.Size = UDim2.new(1, 0, 0, 30)
+	essenceLabel.Position = UDim2.new(0, 0, 0.5, 0)
+	essenceLabel.BackgroundTransparency = 1
+	essenceLabel.Text = "Essence: 0"
+	essenceLabel.TextColor3 = THEME.TEXT_COLOR
+	essenceLabel.Font = THEME.FONT
+	essenceLabel.TextSize = 20
+	essenceLabel.Parent = frame
+	self.BottomEssenceLabel = essenceLabel
+
+	-- Connect Health Update
+	local humanoid = self.Player.Character and self.Player.Character:FindFirstChild("Humanoid")
+	if humanoid then
+		self:UpdateHealth(humanoid)
+		humanoid.HealthChanged:Connect(function()
+			self:UpdateHealth(humanoid)
+		end)
+	end
+	
+	self.Player.CharacterAdded:Connect(function(char)
+		local hum = char:WaitForChild("Humanoid")
+		self:UpdateHealth(hum)
+		hum.HealthChanged:Connect(function()
+			self:UpdateHealth(hum)
+		end)
+	end)
+end
+
+function UIController:UpdateHealth(humanoid)
+	if not self.HealthBarFill then return end
+	local percent = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
+	self.HealthBarFill:TweenSize(UDim2.new(percent, 0, 1, 0), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2, true)
+end
+
+function UIController:ShowWelcomePopup()
+	local screenGui = self.ScreenGui
+	if not screenGui then return end
+
+	local frame = self:CreateGlassPanel(UDim2.new(0, 400, 0, 200), UDim2.new(0.5, -200, 0.5, -100))
+	frame.Name = "WelcomePopup"
+	frame.Parent = screenGui
+	
+	local title = Instance.new("TextLabel")
+	title.Size = UDim2.new(1, 0, 0, 50)
+	title.BackgroundTransparency = 1
+	title.Text = "Welcome to Aetheria"
+	title.TextColor3 = THEME.ACCENT_COLOR
+	title.Font = THEME.FONT
+	title.TextSize = 28
+	title.Parent = frame
+	
+	local desc = Instance.new("TextLabel")
+	desc.Size = UDim2.new(0.9, 0, 0.5, 0)
+	desc.Position = UDim2.new(0.05, 0, 0.25, 0)
+	desc.BackgroundTransparency = 1
+	desc.Text = "The Omni-Verse is collapsing.\nDefeat the Glitch."
+	desc.TextColor3 = THEME.TEXT_COLOR
+	desc.Font = Enum.Font.Gotham
+	desc.TextSize = 18
+	desc.TextWrapped = true
+	desc.Parent = frame
+	
+	local closeBtn = self:CreateActionButton("BEGIN", UDim2.new(0.5, 0, 0.85, 0), THEME.ACCENT_COLOR)
+	closeBtn.Size = UDim2.new(0, 120, 0, 40)
+	closeBtn.TextSize = 18
+	closeBtn.Parent = frame
+	
+	closeBtn.Activated:Connect(function()
+		frame:Destroy()
+	end)
 end
 
 function UIController:CreateZoneLabel(parent)
@@ -817,6 +930,9 @@ function UIController:UpdateCurrencyDisplay(currencies)
 	
 	if currencies.Essence then
 		self.EssenceLabel.Text = "✨ Essence: " .. self:FormatNumber(currencies.Essence)
+		if self.BottomEssenceLabel then
+			self.BottomEssenceLabel.Text = "Essence: " .. self:FormatNumber(currencies.Essence)
+		end
 	end
 	if currencies.Aether then
 		self.AetherLabel.Text = "💎 Aether: " .. self:FormatNumber(currencies.Aether)

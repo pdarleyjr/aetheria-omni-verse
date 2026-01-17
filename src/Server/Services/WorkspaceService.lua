@@ -174,6 +174,16 @@ function WorkspaceService:GenerateHubDecor()
 	hubFolder.Name = "HubDecor"
 	hubFolder.Parent = Workspace
 	
+	-- Hub Platform (Floor)
+	local hubFloor = Instance.new("Part")
+	hubFloor.Name = "HubFloor"
+	hubFloor.Size = Vector3.new(500, 5, 500)
+	hubFloor.Position = Vector3.new(0, -2.5, 0)
+	hubFloor.Anchored = true
+	hubFloor.Material = Enum.Material.Neon
+	hubFloor.Color = Color3.fromRGB(40, 20, 60) -- Dark Purple
+	hubFloor.Parent = hubFolder
+
 	-- Spawn Location
 	local spawnLocation = Instance.new("SpawnLocation")
 	spawnLocation.Name = "HubSpawn"
@@ -240,11 +250,11 @@ function WorkspaceService:GeneratePortals()
 	
 	local glitchZone = Constants.ZONES["Glitch Wastes"]
 	if glitchZone then
-		-- Hub -> Glitch Wastes
+		-- Hub -> Glitch Wastes (Neon Magenta)
 		self:CreatePortal(portalsFolder, "ToGlitchWastes", Vector3.new(0, 5, 45), glitchZone.Center + Vector3.new(0, 5, 0), Color3.fromRGB(255, 0, 255))
 		
-		-- Glitch Wastes -> Hub
-		self:CreatePortal(portalsFolder, "ToHub", glitchZone.Center + Vector3.new(0, 5, 50), Vector3.new(0, 5, 0), Color3.fromRGB(100, 200, 255))
+		-- Glitch Wastes -> Hub (Neon Cyan)
+		self:CreatePortal(portalsFolder, "ToHub", glitchZone.Center + Vector3.new(0, 5, 50), Vector3.new(0, 5, 0), Color3.fromRGB(0, 255, 255))
 	end
 	
 	local azureZone = Constants.ZONES["Azure Sea"]
@@ -271,6 +281,17 @@ function WorkspaceService:CreatePortal(parent, name, position, targetPos, color,
 	portal.Color = color
 	portal.Parent = parent
 	
+	-- Particle Emitter
+	local particles = Instance.new("ParticleEmitter")
+	particles.Color = ColorSequence.new(color)
+	particles.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 0)})
+	particles.Texture = "rbxassetid://243098098" -- Generic particle texture
+	particles.Lifetime = NumberRange.new(1, 2)
+	particles.Rate = 20
+	particles.Speed = NumberRange.new(2, 5)
+	particles.SpreadAngle = Vector2.new(45, 45)
+	particles.Parent = portal
+
 	-- Visual Frame
 	local frame = Instance.new("Part")
 	frame.Name = "Frame"
@@ -350,36 +371,33 @@ function WorkspaceService:GenerateDecor()
 	local center = zone.Center
 	local size = zone.Size
 	
-	-- Generate some floating crystals
-	for i = 1, 15 do
-		local crystal = Instance.new("Part")
-		crystal.Name = "FloatingCrystal"
-		crystal.Size = Vector3.new(2, 4, 2)
-		crystal.Anchored = true
-		crystal.CanCollide = false
-		crystal.Color = Color3.fromRGB(100, 200, 255)
-		crystal.Material = Enum.Material.Neon
-		crystal.Shape = Enum.PartType.Cylinder
+	-- Generate Low Poly Decor (Cubes and Pyramids)
+	for i = 1, 30 do
+		local isCube = math.random() > 0.5
+		local decorPart = Instance.new("Part")
+		decorPart.Name = isCube and "DecorCube" or "DecorPyramid"
+		decorPart.Size = Vector3.new(math.random(3, 8), math.random(3, 8), math.random(3, 8))
+		decorPart.Anchored = true
+		decorPart.CanCollide = true
+		decorPart.Color = Color3.fromRGB(math.random(50, 100), math.random(0, 50), math.random(100, 200))
+		decorPart.Material = Enum.Material.Plastic -- Low Poly look
+		
+		if isCube then
+			decorPart.Shape = Enum.PartType.Block
+		else
+			-- Make a pyramid-ish shape using a Wedge or CornerWedge, or just a rotated block for simplicity in "Low Poly" abstract style
+			-- Actually, let's use CornerWedge for variety
+			decorPart.Shape = Enum.PartType.CornerWedge
+		end
 		
 		local x = center.X + math.random(-size.X/2, size.X/2)
 		local z = center.Z + math.random(-size.Z/2, size.Z/2)
-		local y = center.Y + math.random(10, 30)
+		local y = center.Y + math.random(0, 5) -- On ground
 		
-		crystal.Position = Vector3.new(x, y, z)
-		crystal.CFrame = CFrame.new(crystal.Position) * CFrame.Angles(math.random(), math.random(), math.random())
+		decorPart.Position = Vector3.new(x, y + decorPart.Size.Y/2, z)
+		decorPart.CFrame = CFrame.new(decorPart.Position) * CFrame.Angles(math.random(), math.random(), math.random())
 		
-		crystal.Parent = decorFolder
-		
-		-- Simple floating animation
-		task.spawn(function()
-			local startY = y
-			while crystal.Parent do
-				local t = os.clock()
-				crystal.Position = Vector3.new(x, startY + math.sin(t) * 2, z)
-				crystal.CFrame = crystal.CFrame * CFrame.Angles(0, 0.01, 0)
-				task.wait(0.03)
-			end
-		end)
+		decorPart.Parent = decorFolder
 	end
 end
 
