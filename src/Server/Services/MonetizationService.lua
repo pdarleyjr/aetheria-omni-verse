@@ -9,11 +9,11 @@ local DataService = require(ServerScriptService.Server.Services.DataService)
 local MonetizationService = {}
 
 function MonetizationService:Init()
-	print("[MonetizationService] Initializing...")
+	-- print("[MonetizationService] Initializing...")
 end
 
 function MonetizationService:Start()
-	print("[MonetizationService] Starting...")
+	-- print("[MonetizationService] Starting...")
 	
 	MarketplaceService.ProcessReceipt = function(receiptInfo)
 		return self:ProcessReceipt(receiptInfo)

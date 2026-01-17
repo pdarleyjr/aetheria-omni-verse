@@ -168,7 +168,7 @@ function SpiritService:AddExp(player: Player, amount: number)
 	if not spirit then return end
 	
 	spirit.Exp = (spirit.Exp or 0) + amount
-	print(`[SpiritService] Added {amount} XP to {spirit.Name}. Total: {spirit.Exp}`)
+	-- print(`[SpiritService] Added {amount} XP to {spirit.Name}. Total: {spirit.Exp}`)
 	
 	self:CheckLevelUp(player, spirit)
 	
@@ -196,8 +196,8 @@ function SpiritService:CheckLevelUp(player: Player, spirit: any)
 end
 
 function SpiritService:GetExpForLevel(level: number): number
-	-- Simple formula: Base * (Level-1)^Exponent
-	return math.floor(Constants.LEVELING.BASE_EXP * math.pow(level - 1, Constants.LEVELING.EXP_EXPONENT))
+	-- Level * 100 XP required
+	return level * 100
 end
 
 function SpiritService:UpdateStats(spirit: any)

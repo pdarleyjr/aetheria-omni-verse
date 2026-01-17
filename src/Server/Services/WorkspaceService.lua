@@ -4,6 +4,7 @@ local Players = game:GetService("Players")
 local Lighting = game:GetService("Lighting")
 
 local Constants = require(ReplicatedStorage.Shared.Modules.Constants)
+local QuestService = require(script.Parent.QuestService)
 
 local WorkspaceService = {}
 
@@ -11,6 +12,14 @@ function WorkspaceService:SetupLighting()
 	Lighting.ClockTime = 0
 	Lighting.Brightness = 2
 	Lighting.OutdoorAmbient = Color3.fromRGB(80, 40, 120) -- Purple
+
+	local atmosphere = Instance.new("Atmosphere")
+	atmosphere.Density = 0.3
+	atmosphere.Offset = 0
+	atmosphere.Color = Color3.fromRGB(80, 40, 120)
+	atmosphere.Glare = 0
+	atmosphere.Haze = 0
+	atmosphere.Parent = Lighting
 
 	local sky = Instance.new("Sky")
 	sky.Name = "NebulaSky"
@@ -312,6 +321,16 @@ function WorkspaceService:CreatePortal(parent, name, position, targetPos, color,
 			task.delay(0.5, function()
 				if root then
 					root.CFrame = CFrame.new(targetPos)
+					
+					-- Notify QuestService of zone entry
+					local player = Players:GetPlayerFromCharacter(char)
+					if player then
+						if name == "ToAzureSea" then
+							QuestService:OnZoneEntered(player, "Azure Sea")
+						elseif name == "ToGlitchWastes" then
+							QuestService:OnZoneEntered(player, "Glitch Wastes")
+						end
+					end
 				end
 				if highlight then highlight:Destroy() end
 				debounce[char] = nil

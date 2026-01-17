@@ -202,7 +202,7 @@ function EnemyService:SpawnEnemy(name: string, position: Vector3)
 	
 	self:CreateHealthBar(model)
 	
-	print("[EnemyService] Spawned " .. name)
+	-- print("[EnemyService] Spawned " .. name)
 end
 
 function EnemyService:CreateHealthBar(model)
@@ -379,7 +379,7 @@ function EnemyService:HandleEnemyDeath(enemy: Model)
 		-- Notify QuestService
 		QuestService:OnEnemyKilled(killer, enemy.Name)
 		
-		print(`[EnemyService] {killer.Name} killed {enemy.Name} and gained {exp} XP!`)
+		-- print(`[EnemyService] {killer.Name} killed {enemy.Name} and gained {exp} XP!`)
 	end
 	
 	-- Visual effect?

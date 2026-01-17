@@ -12,19 +12,34 @@ QuestService.ActiveQuests = {} -- [playerId] = { QuestId = "Tutorial", Progress 
 local QUESTS = {
 	["Tutorial"] = {
 		Title = "First Steps",
-		Description = "Defeat the Glitch Slimes invading the wilderness.",
+		Description = "Welcome to the Realm. Follow the guide's instructions.",
 		Tasks = {
+			{
+				Id = "talk_guide",
+				Type = "Talk",
+				Target = "Guide",
+				Required = 1,
+				Description = "Talk to the Guide"
+			},
 			{
 				Id = "kill_slimes",
 				Type = "Kill",
 				Target = "Glitch Slime",
 				Required = 3,
-				Description = "Defeat Glitch Slimes"
+				Description = "Defeat 3 Glitch Slimes"
+			},
+			{
+				Id = "visit_sea",
+				Type = "Visit",
+				Target = "Azure Sea",
+				Required = 1,
+				Description = "Visit the Azure Sea"
 			}
 		},
 		Rewards = {
 			Exp = 100,
-			Currencies = { Essence = 50 }
+			Currencies = { Essence = 100 },
+			Items = { { Id = "Starter Rod", Amount = 1 } }
 		}
 	}
 }
@@ -54,6 +69,9 @@ function QuestService:OnPlayerAdded(player: Player)
 	
 	task.wait(2) -- Wait for client to load
 	self:AssignQuest(player, "Tutorial")
+	
+	-- Auto-complete first step for now
+	self:ProgressTask(player, "talk_guide", 1)
 end
 
 function QuestService:AssignQuest(player: Player, questId: string)
@@ -79,29 +97,42 @@ function QuestService:AssignQuest(player: Player, questId: string)
 end
 
 function QuestService:OnEnemyKilled(player: Player, enemyName: string)
+	-- Auto-complete first step for now
+	self:CheckTaskProgress(player, "Kill", enemyName)
+end
+
+function QuestService:OnZoneEntered(player: Player, zoneName: string)
+	-- Auto-complete first step for now
+	self:CheckTaskProgress(player, "Visit", zoneName)
+end
+
+function QuestService:ProgressTask(player: Player, taskId: string, amount: number)
 	local activeQuest = self.ActiveQuests[player.UserId]
 	if not activeQuest then return end
 	
 	local questDef = QUESTS[activeQuest.Id]
-	local changed = false
+	if not questDef then return end
+	
+	local taskData = activeQuest.Tasks[taskId]
+	if not taskData then return end
+	
+	if taskData.Current < taskData.Required then
+		taskData.Current = math.min(taskData.Current + amount, taskData.Required)
+		self:UpdateClient(player)
+		self:CheckCompletion(player)
+	end
+end
+
+function QuestService:CheckTaskProgress(player: Player, type: string, target: string)
+	local activeQuest = self.ActiveQuests[player.UserId]
+	if not activeQuest then return end
+	
+	local questDef = QUESTS[activeQuest.Id]
 	
 	for _, taskDef in ipairs(questDef.Tasks) do
-		if taskDef.Type == "Kill" and taskDef.Target == enemyName then
-			local taskData = activeQuest.Tasks[taskDef.Id]
-			if taskData.Current < taskData.Required then
-				taskData.Current = taskData.Current + 1
-				changed = true
-				
-				-- Check completion
-				if self:CheckCompletion(player) then
-					return -- CheckCompletion handles the update
-				end
-			end
+		if taskDef.Type == type and taskDef.Target == target then
+			self:ProgressTask(player, taskDef.Id, 1)
 		end
-	end
-	
-	if changed then
-		self:UpdateClient(player)
 	end
 end
 
@@ -137,8 +168,11 @@ function QuestService:CompleteQuest(player: Player)
 	print("[QuestService] " .. player.Name .. " completed quest " .. activeQuest.Id)
 	
 	-- Give Rewards
-	-- (Assuming SpiritService/DataService handles this, but for now just print)
-	-- In a real scenario: SpiritService:AddExp(player, questDef.Rewards.Exp)
+	if questDef.Rewards.Exp then
+		-- SpiritService:AddExp(player, questDef.Rewards.Exp) -- Need to require SpiritService or use Signal
+	end
+	
+	-- TODO: Give Items and Currency via DataService
 	
 	self.ActiveQuests[player.UserId] = nil
 	
