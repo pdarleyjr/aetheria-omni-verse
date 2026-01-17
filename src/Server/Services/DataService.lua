@@ -18,6 +18,7 @@ local PROFILE_TEMPLATE = {
 		Essence = 0,
 		Aether = 0,
 		Crystals = 0,
+		Gold = 0,
 	},
 	Stats = {
 		Level = 1,
@@ -129,6 +130,55 @@ end
 
 function DataService.AddEssence(player: Player, amount: number)
 	return DataService.AddCurrency(player, "Essence", amount)
+end
+
+function DataService.GetGold(player: Player)
+	local data = DataService.GetData(player)
+	if data and data.Currencies then
+		return data.Currencies.Gold or 0
+	end
+	return 0
+end
+
+function DataService.AddGold(player: Player, amount: number)
+	local result = DataService.AddCurrency(player, "Gold", amount)
+	if result then
+		local GoldUpdate = Remotes.GetEvent("GoldUpdate")
+		GoldUpdate:FireClient(player, DataService.GetGold(player))
+	end
+	return result
+end
+
+function DataService.RemoveGold(player: Player, amount: number)
+	local result = DataService.RemoveCurrency(player, "Gold", amount)
+	if result then
+		local GoldUpdate = Remotes.GetEvent("GoldUpdate")
+		GoldUpdate:FireClient(player, DataService.GetGold(player))
+	end
+	return result
+end
+
+function DataService.AddItem(player: Player, itemData)
+	local data = DataService.GetData(player)
+	if not data then return false end
+	
+	if not data.Inventory.Items then
+		data.Inventory.Items = {}
+	end
+	
+	local uniqueId = itemData.id .. "_" .. os.time() .. "_" .. math.random(1000, 9999)
+	data.Inventory.Items[uniqueId] = {
+		id = itemData.id,
+		name = itemData.name,
+		type = itemData.type,
+		stats = itemData.stats,
+		effect = itemData.effect,
+		value = itemData.value,
+		acquiredAt = os.time()
+	}
+	
+	DataService.UpdateClientHUD(player)
+	return true, uniqueId
 end
 
 function DataService.MoveToEscrow(player: Player, category: string, itemId: string)

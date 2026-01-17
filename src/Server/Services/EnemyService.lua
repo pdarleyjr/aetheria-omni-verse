@@ -1,4 +1,4 @@
---!strict
+--[!strict
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -16,8 +16,24 @@ local COMBAT_ZONE_CENTER = Vector3.new(0, 5, 0)
 local COMBAT_ZONE_RADIUS = 100
 
 local STATE_IDLE = "Idle"
+local STATE_ALERT = "Alert"
 local STATE_CHASE = "Chase"
 local STATE_ATTACK = "Attack"
+local STATE_FLEE = "Flee"
+
+local SPAWN_ORIGIN = Vector3.new(0, 0, 0)
+
+function EnemyService:GetZoneDifficulty(position: Vector3): number
+	local distance = (Vector3.new(position.X, 0, position.Z) - Vector3.new(SPAWN_ORIGIN.X, 0, SPAWN_ORIGIN.Z)).Magnitude
+	
+	for _, zone in ipairs(Constants.ENEMY.ZONE_DIFFICULTY_MULTIPLIERS) do
+		if distance <= zone.MaxDistance then
+			return zone.Multiplier
+		end
+	end
+	
+	return 3.0 -- Default to highest multiplier
+end
 
 function EnemyService:Init()
 	print("[EnemyService] Initializing...")
@@ -124,18 +140,26 @@ function EnemyService:SpawnBoss(name: string, position: Vector3)
 end
 
 function EnemyService:SpawnEnemy(name: string, position: Vector3)
+	local difficultyMultiplier = self:GetZoneDifficulty(position)
+	local baseHealth = 100
+	local baseDamage = 15
+	
 	local model = Instance.new("Model")
 	model.Name = name
-	model:SetAttribute("ExpReward", 25) -- Base XP reward
+	model:SetAttribute("ExpReward", math.floor(25 * difficultyMultiplier))
 	model:SetAttribute("State", STATE_IDLE)
 	model:SetAttribute("HomePosition", position)
 	model:SetAttribute("PatrolTarget", Vector3.zero)
 	model:SetAttribute("LastAttack", 0)
 	model:SetAttribute("LastMove", 0)
+	model:SetAttribute("LastPatrolChange", 0)
+	model:SetAttribute("Damage", math.floor(baseDamage * difficultyMultiplier))
+	model:SetAttribute("AlertStart", 0)
+	model:SetAttribute("Telegraphing", false)
 	
 	local humanoid = Instance.new("Humanoid")
-	humanoid.MaxHealth = 100
-	humanoid.Health = 100
+	humanoid.MaxHealth = math.floor(baseHealth * difficultyMultiplier)
+	humanoid.Health = humanoid.MaxHealth
 	humanoid.Parent = model
 	
 	local rootPart = Instance.new("Part")
@@ -208,7 +232,7 @@ function EnemyService:SpawnEnemy(name: string, position: Vector3)
 	
 	self:CreateHealthBar(model)
 	
-	-- print("[EnemyService] Spawned " .. name)
+	-- print("[EnemyService] Spawned " .. name .. " with difficulty " .. difficultyMultiplier)
 end
 
 function EnemyService:CreateHealthBar(model)
@@ -276,11 +300,23 @@ function EnemyService:UpdateEnemies()
 			-- Regular Enemy State Machine
 			local state = enemy:GetAttribute("State") or STATE_IDLE
 			local homePos = enemy:GetAttribute("HomePosition") or rootPart.Position
+			local healthPercent = humanoid.Health / humanoid.MaxHealth
 			
+			-- Check for Flee state (low health)
+			if healthPercent < Constants.ENEMY.FLEE_HEALTH_THRESHOLD then
+				state = STATE_FLEE
 			-- State Transitions
-			if state == STATE_IDLE then
+			elseif state == STATE_IDLE then
 				if target and distanceToTarget < 40 then
+					state = STATE_ALERT
+					enemy:SetAttribute("AlertStart", now)
+				end
+			elseif state == STATE_ALERT then
+				local alertStart = enemy:GetAttribute("AlertStart") or now
+				if now - alertStart > 0.5 then -- 0.5s alert duration
 					state = STATE_CHASE
+				elseif not target or distanceToTarget > 50 then
+					state = STATE_IDLE
 				end
 			elseif state == STATE_CHASE then
 				if not target or distanceToTarget > 60 then
@@ -292,50 +328,95 @@ function EnemyService:UpdateEnemies()
 				if not target or distanceToTarget > 10 then
 					state = STATE_CHASE
 				end
+			elseif state == STATE_FLEE then
+				if healthPercent >= Constants.ENEMY.FLEE_HEALTH_THRESHOLD then
+					state = STATE_IDLE
+				end
 			end
 			
 			enemy:SetAttribute("State", state)
 			
 			-- State Behaviors
 			if state == STATE_IDLE then
-				-- Patrol Logic
+				-- Improved Patrol Logic with random wandering
 				local patrolTarget = enemy:GetAttribute("PatrolTarget")
-				if not patrolTarget or patrolTarget == Vector3.zero or (rootPart.Position - patrolTarget).Magnitude < 5 then
-					-- Pick new random point near home
-					local rx = math.random(-20, 20)
-					local rz = math.random(-20, 20)
+				local lastPatrolChange = enemy:GetAttribute("LastPatrolChange") or 0
+				
+				-- Change patrol target if reached, invalid, or timeout (random timing)
+				if not patrolTarget or patrolTarget == Vector3.zero 
+					or (rootPart.Position - patrolTarget).Magnitude < 5
+					or (now - lastPatrolChange > math.random(5, 10)) then
+					
+					-- Pick new random point near home within spawn radius
+					local angle = math.random() * math.pi * 2
+					local distance = math.random(10, 25)
+					local rx = math.cos(angle) * distance
+					local rz = math.sin(angle) * distance
 					patrolTarget = homePos + Vector3.new(rx, 0, rz)
 					enemy:SetAttribute("PatrolTarget", patrolTarget)
+					enemy:SetAttribute("LastPatrolChange", now)
 				end
 				
 				if now - (enemy:GetAttribute("LastMove") or 0) > 0.5 then
 					humanoid:MoveTo(patrolTarget)
 					enemy:SetAttribute("LastMove", now)
 				end
-				
+			
+			elseif state == STATE_ALERT then
+				-- Stop and face player (visual telegraph before engaging)
+				humanoid:MoveTo(rootPart.Position)
+			
 			elseif state == STATE_CHASE then
 				if targetPos and now - (enemy:GetAttribute("LastMove") or 0) > 0.2 then
 					humanoid:MoveTo(targetPos)
 					enemy:SetAttribute("LastMove", now)
 				end
-				
+			
 			elseif state == STATE_ATTACK then
 				humanoid:MoveTo(rootPart.Position) -- Stop moving
 				
 				local lastAttack = enemy:GetAttribute("LastAttack") or 0
-				if now - lastAttack > 2 then -- 2s Attack Cooldown
-					-- Telegraph (Wait 0.5s then damage)
-					task.delay(0.5, function()
+				local isTelegraphing = enemy:GetAttribute("Telegraphing") or false
+				
+				if not isTelegraphing and now - lastAttack > 2 then -- 2s Attack Cooldown
+					enemy:SetAttribute("Telegraphing", true)
+					
+					-- Fire telegraph remote
+					local EnemyTelegraph = Remotes.GetEvent("EnemyTelegraph")
+					if EnemyTelegraph then
+						EnemyTelegraph:FireAllClients({
+							enemyId = enemy:GetFullName(),
+							attackType = "melee",
+							duration = Constants.ENEMY.TELEGRAPH_DURATION
+						})
+					end
+					
+					-- Telegraph delay then damage
+					task.delay(Constants.ENEMY.TELEGRAPH_DURATION, function()
 						if enemy.Parent and humanoid.Health > 0 and target and target.Character then
 							local tHum = target.Character:FindFirstChild("Humanoid")
 							local tRoot = target.Character:FindFirstChild("HumanoidRootPart")
 							if tHum and tRoot and (tRoot.Position - rootPart.Position).Magnitude < 12 then
-								tHum:TakeDamage(15)
-								-- Visuals could be triggered here via remote
+								local damage = enemy:GetAttribute("Damage") or 15
+								tHum:TakeDamage(damage)
 							end
 						end
+						enemy:SetAttribute("Telegraphing", false)
 					end)
 					enemy:SetAttribute("LastAttack", now)
+				end
+			
+			elseif state == STATE_FLEE then
+				-- Run away from target
+				if target and targetPos and now - (enemy:GetAttribute("LastMove") or 0) > 0.2 then
+					local fleeDirection = (rootPart.Position - targetPos).Unit
+					local fleeTarget = rootPart.Position + fleeDirection * 30
+					humanoid:MoveTo(fleeTarget)
+					enemy:SetAttribute("LastMove", now)
+				elseif now - (enemy:GetAttribute("LastMove") or 0) > 0.5 then
+					-- No target, wander towards home
+					humanoid:MoveTo(homePos)
+					enemy:SetAttribute("LastMove", now)
 				end
 			end
 			

@@ -39,6 +39,18 @@ local THEME = {
 	CORNER_RADIUS = UDim.new(0, 12)
 }
 
+-- Standardized Animation Timing
+local ANIM = {
+	PANEL_OPEN_TIME = 0.35,
+	PANEL_CLOSE_TIME = 0.25,
+	BUTTON_HOVER_TIME = 0.15,
+	BUTTON_CLICK_TIME = 0.08,
+	HOVER_SCALE = 1.1,
+	CLICK_SCALE = 0.9,
+	EASING_STYLE = Enum.EasingStyle.Quad,
+	EASING_DIRECTION = Enum.EasingDirection.Out,
+}
+
 function UIController:Init()
 	self.Player = Players.LocalPlayer
 	self.PlayerGui = self.Player:WaitForChild("PlayerGui", 30)
@@ -51,7 +63,13 @@ function UIController:Init()
 	self.RequestSkill = Remotes.GetEvent("RequestSkill")
 	self.TeleportToHub = Remotes.GetEvent("TeleportToHub")
 	self.SpawnVehicle = Remotes.GetEvent("SpawnVehicle")
-	self.BuyItemFunc = Remotes.GetFunction("BuyItem")
+	self.PurchaseItemFunc = Remotes.GetFunction("PurchaseItem")
+	
+	-- Gold Update Event
+	local GoldUpdate = Remotes.GetEvent("GoldUpdate")
+	GoldUpdate.OnClientEvent:Connect(function(newGold)
+		self:UpdateGoldDisplay(newGold)
+	end)
 	
 	-- Boss Events
 	local BossSpawned = Remotes.GetEvent("BossSpawned")
@@ -122,13 +140,14 @@ function UIController:CreateHUD()
 	self:CreateZoneLabel(screenGui)
 	
 	-- 1. Currency Panel (Top Left)
-	local currencyFrame = self:CreateGlassPanel(UDim2.new(0, 220, 0, 90), UDim2.new(0, 20, 0, 20))
+	local currencyFrame = self:CreateGlassPanel(UDim2.new(0, 220, 0, 115), UDim2.new(0, 20, 0, 20))
 	currencyFrame.Name = "CurrencyPanel"
 	currencyFrame.Parent = screenGui
 	
-	self.EssenceLabel = self:CreateCurrencyLabel("Essence", "✨", 0, currencyFrame)
-	self.AetherLabel = self:CreateCurrencyLabel("Aether", "💎", 1, currencyFrame)
-	self.CrystalsLabel = self:CreateCurrencyLabel("Crystals", "🔮", 2, currencyFrame)
+	self.GoldLabel = self:CreateCurrencyLabel("Gold", "🪙", 0, currencyFrame)
+	self.EssenceLabel = self:CreateCurrencyLabel("Essence", "✨", 1, currencyFrame)
+	self.AetherLabel = self:CreateCurrencyLabel("Aether", "💎", 2, currencyFrame)
+	self.CrystalsLabel = self:CreateCurrencyLabel("Crystals", "🔮", 3, currencyFrame)
 	
 	-- 1.5 Menu Buttons (Left Side)
 	self:CreateMenuButtons(screenGui)
@@ -467,7 +486,7 @@ function UIController:CreateDialogueFrame(parent)
 	frame.Visible = false
 	frame.Parent = parent
 	self.DialogueFrame = frame
-	
+    
 	local nameLabel = Instance.new("TextLabel")
 	nameLabel.Name = "NameLabel"
 	nameLabel.Size = UDim2.new(0, 200, 0, 30)
@@ -689,14 +708,8 @@ function UIController:CreateActionButton(text, position, color)
 	corner.CornerRadius = UDim.new(1, 0)
 	corner.Parent = btn
 	
-	-- Hover Effects
-	btn.MouseEnter:Connect(function()
-		TweenService:Create(btn, TweenInfo.new(0.2), {Size = UDim2.new(0, 88, 0, 88)}):Play()
-	end)
-	
-	btn.MouseLeave:Connect(function()
-		TweenService:Create(btn, TweenInfo.new(0.2), {Size = UDim2.new(0, 80, 0, 80)}):Play()
-	end)
+	-- Apply standardized hover/click effects
+	self:ApplyButtonEffects(btn, UDim2.new(0, 80, 0, 80))
 	
 	return btn
 end
@@ -748,7 +761,7 @@ function UIController:CreateMenuButtons(parent)
 end
 
 function UIController:CreateShopUI(parent)
-	local frame = self:CreateGlassPanel(UDim2.new(0, 300, 0, 400), UDim2.new(0.5, -150, 0.5, -200))
+	local frame = self:CreateGlassPanel(UDim2.new(0, 350, 0, 450), UDim2.new(0.5, -175, 0.5, -225))
 	frame.Name = "ShopFrame"
 	frame.Visible = false
 	frame.Parent = parent
@@ -758,7 +771,7 @@ function UIController:CreateShopUI(parent)
 	local title = Instance.new("TextLabel")
 	title.Size = UDim2.new(1, 0, 0, 50)
 	title.BackgroundTransparency = 1
-	title.Text = "SHOP"
+	title.Text = "🛒 SHOP"
 	title.TextColor3 = THEME.ACCENT_COLOR
 	title.Font = THEME.FONT
 	title.TextSize = 24
@@ -789,22 +802,28 @@ function UIController:CreateShopUI(parent)
 	list.Position = UDim2.new(0, 10, 0, 50)
 	list.BackgroundTransparency = 1
 	list.BorderSizePixel = 0
+	list.CanvasSize = UDim2.new(0, 0, 0, #Constants.SHOP_ITEMS * 75)
+	list.ScrollBarThickness = 6
 	list.Parent = frame
 	
 	local layout = Instance.new("UIListLayout")
-	layout.Padding = UDim.new(0, 5)
+	layout.Padding = UDim.new(0, 8)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = list
 	
-	-- Basic Sword Item
-	self:CreateShopItem(list, "Basic Sword", 50, "Essence")
+	-- Create items from Constants.SHOP_ITEMS
+	for i, item in ipairs(Constants.SHOP_ITEMS) do
+		self:CreateShopItem(list, item, i)
+	end
 end
 
-function UIController:CreateShopItem(parent, name, cost, currency)
+function UIController:CreateShopItem(parent, itemData, order)
 	local frame = Instance.new("Frame")
-	frame.Size = UDim2.new(1, 0, 0, 60)
+	frame.Name = itemData.id
+	frame.Size = UDim2.new(1, -10, 0, 65)
 	frame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 	frame.BackgroundTransparency = 0.5
+	frame.LayoutOrder = order
 	frame.Parent = parent
 	
 	local corner = Instance.new("UICorner")
@@ -812,22 +831,34 @@ function UIController:CreateShopItem(parent, name, cost, currency)
 	corner.Parent = frame
 	
 	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Size = UDim2.new(0.6, 0, 0.5, 0)
+	nameLabel.Size = UDim2.new(0.55, 0, 0, 25)
 	nameLabel.Position = UDim2.new(0, 10, 0, 5)
 	nameLabel.BackgroundTransparency = 1
-	nameLabel.Text = name
+	nameLabel.Text = itemData.name
 	nameLabel.TextColor3 = Color3.new(1, 1, 1)
 	nameLabel.Font = THEME.FONT
 	nameLabel.TextSize = 16
 	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
 	nameLabel.Parent = frame
 	
+	-- Type label
+	local typeLabel = Instance.new("TextLabel")
+	typeLabel.Size = UDim2.new(0.55, 0, 0, 18)
+	typeLabel.Position = UDim2.new(0, 10, 0, 28)
+	typeLabel.BackgroundTransparency = 1
+	typeLabel.Text = "[" .. itemData.type:upper() .. "]"
+	typeLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+	typeLabel.Font = Enum.Font.Gotham
+	typeLabel.TextSize = 12
+	typeLabel.TextXAlignment = Enum.TextXAlignment.Left
+	typeLabel.Parent = frame
+	
 	local costLabel = Instance.new("TextLabel")
-	costLabel.Size = UDim2.new(0.6, 0, 0.5, 0)
-	costLabel.Position = UDim2.new(0, 10, 0.5, 0)
+	costLabel.Size = UDim2.new(0.55, 0, 0, 20)
+	costLabel.Position = UDim2.new(0, 10, 0, 44)
 	costLabel.BackgroundTransparency = 1
-	costLabel.Text = tostring(cost) .. " " .. currency
-	costLabel.TextColor3 = Color3.fromRGB(200, 200, 100)
+	costLabel.Text = "🪙 " .. tostring(itemData.price) .. " Gold"
+	costLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
 	costLabel.Font = Enum.Font.Gotham
 	costLabel.TextSize = 14
 	costLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -848,30 +879,35 @@ function UIController:CreateShopItem(parent, name, cost, currency)
 	btnCorner.Parent = buyBtn
 	
 	buyBtn.Activated:Connect(function()
-		local success, msg = self.BuyItemFunc:InvokeServer(name)
+		buyBtn.Text = "..."
+		buyBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+		
+		local success, msg = self.PurchaseItemFunc:InvokeServer(itemData.id)
+		
 		if success then
-			self:DisplayAnnouncement("Purchased " .. name .. "!", Color3.fromRGB(0, 255, 0))
+			buyBtn.Text = "✓"
+			buyBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+			self:DisplayAnnouncement("Purchased " .. itemData.name .. "!", Color3.fromRGB(0, 255, 100))
 		else
+			buyBtn.Text = "✗"
+			buyBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 			self:DisplayAnnouncement(msg or "Purchase Failed", Color3.fromRGB(255, 50, 50))
 		end
+		
+		task.delay(1, function()
+			buyBtn.Text = "BUY"
+			buyBtn.BackgroundColor3 = THEME.ACCENT_COLOR
+		end)
 	end)
 end
 
 function UIController:ToggleShop()
 	if not self.ShopFrame then return end
 	
-	self.ShopFrame.Visible = not self.ShopFrame.Visible
-	
 	if self.ShopFrame.Visible then
-		-- Pop in animation
-		self.ShopFrame.Size = UDim2.new(0, 0, 0, 0)
-		self.ShopFrame:TweenSize(
-			UDim2.new(0, 300, 0, 400),
-			Enum.EasingDirection.Out,
-			Enum.EasingStyle.Back,
-			0.3,
-			true
-		)
+		self:TweenPanelOut(self.ShopFrame)
+	else
+		self:TweenPanelIn(self.ShopFrame, UDim2.new(0, 350, 0, 450))
 	end
 end
 
@@ -1072,25 +1108,76 @@ function UIController:HideBossBar()
 	self.BossBarFrame.Visible = false
 end
 
-function UIController:UpdateCurrencyDisplay(currencies)
-	if not currencies then return end
-	
-	if currencies.Essence then
-		self.EssenceLabel.Text = "✨ Essence: " .. self:FormatNumber(currencies.Essence)
-		if self.BottomEssenceLabel then
-			self.BottomEssenceLabel.Text = "Essence: " .. self:FormatNumber(currencies.Essence)
-		end
-	end
-	if currencies.Aether then
-		self.AetherLabel.Text = "💎 Aether: " .. self:FormatNumber(currencies.Aether)
-	end
-	if currencies.Crystals then
-		self.CrystalsLabel.Text = "🔮 Crystals: " .. self:FormatNumber(currencies.Crystals)
-	end
-end
-
 function UIController:FormatNumber(n)
 	return tostring(n)
+end
+
+-- Panel Animation Helpers
+function UIController:TweenPanelIn(panel, targetSize)
+	panel.Size = UDim2.new(0, 0, 0, 0)
+	panel.BackgroundTransparency = 1
+	panel.Visible = true
+	
+	local sizeTween = TweenService:Create(panel, TweenInfo.new(ANIM.PANEL_OPEN_TIME, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Size = targetSize,
+		BackgroundTransparency = THEME.GLASS_TRANSPARENCY
+	})
+	sizeTween:Play()
+	return sizeTween
+end
+
+function UIController:TweenPanelOut(panel, callback)
+	local closeTween = TweenService:Create(panel, TweenInfo.new(ANIM.PANEL_CLOSE_TIME, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+		Size = UDim2.new(0, 0, 0, 0),
+		BackgroundTransparency = 1
+	})
+	closeTween:Play()
+	closeTween.Completed:Connect(function()
+		panel.Visible = false
+		if callback then callback() end
+	end)
+	return closeTween
+end
+
+-- Enhanced Button Effects
+function UIController:ApplyButtonEffects(btn, originalSize)
+	local origSizeX = originalSize and originalSize.X.Offset or btn.Size.X.Offset
+	local origSizeY = originalSize and originalSize.Y.Offset or btn.Size.Y.Offset
+	local hoverSize = UDim2.new(0, origSizeX * ANIM.HOVER_SCALE, 0, origSizeY * ANIM.HOVER_SCALE)
+	local clickSize = UDim2.new(0, origSizeX * ANIM.CLICK_SCALE, 0, origSizeY * ANIM.CLICK_SCALE)
+	local normalSize = UDim2.new(0, origSizeX, 0, origSizeY)
+	local origColor = btn.BackgroundColor3
+	local hoverColor = Color3.new(
+		math.min(origColor.R * 1.2, 1),
+		math.min(origColor.G * 1.2, 1),
+		math.min(origColor.B * 1.2, 1)
+	)
+	
+	btn.MouseEnter:Connect(function()
+		TweenService:Create(btn, TweenInfo.new(ANIM.BUTTON_HOVER_TIME, ANIM.EASING_STYLE, ANIM.EASING_DIRECTION), {
+			Size = hoverSize,
+			BackgroundColor3 = hoverColor
+		}):Play()
+	end)
+	
+	btn.MouseLeave:Connect(function()
+		TweenService:Create(btn, TweenInfo.new(ANIM.BUTTON_HOVER_TIME, ANIM.EASING_STYLE, ANIM.EASING_DIRECTION), {
+			Size = normalSize,
+			BackgroundColor3 = origColor
+		}):Play()
+	end)
+	
+	btn.MouseButton1Down:Connect(function()
+		TweenService:Create(btn, TweenInfo.new(ANIM.BUTTON_CLICK_TIME, ANIM.EASING_STYLE, ANIM.EASING_DIRECTION), {
+			Size = clickSize
+		}):Play()
+	end)
+	
+	btn.MouseButton1Up:Connect(function()
+		TweenService:Create(btn, TweenInfo.new(ANIM.BUTTON_CLICK_TIME, ANIM.EASING_STYLE, ANIM.EASING_DIRECTION), {
+			Size = hoverSize
+		}):Play()
+	end)
 end
 
 function UIController:OnAttackPressed()

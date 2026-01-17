@@ -30,6 +30,8 @@ function Remotes.Init()
 	_events["HitConfirmed"] = createRemote("HitConfirmed", "RemoteEvent")
 	_events["AbilityCast"] = createRemote("AbilityCast", "RemoteEvent")
 	_events["ShowDamage"] = createRemote("ShowDamage", "RemoteEvent")
+	_events["OnCombatHit"] = createRemote("OnCombatHit", "RemoteEvent")
+	_events["CurrencyDrop"] = createRemote("CurrencyDrop", "RemoteEvent")
 	_events["RequestSkill"] = createRemote("RequestSkill", "RemoteEvent")
 	
 	-- Data Remotes
@@ -55,6 +57,9 @@ function Remotes.Init()
 	_events["BossDefeated"] = createRemote("BossDefeated", "RemoteEvent")
 	_events["BossUniqueId"] = createRemote("BossUniqueId", "RemoteEvent")
 	
+	-- Enemy Remotes
+	_events["EnemyTelegraph"] = createRemote("EnemyTelegraph", "RemoteEvent")
+	
 	-- Quest Remotes
 	_events["QuestUpdate"] = createRemote("QuestUpdate", "RemoteEvent")
 	_functions["AcceptQuest"] = createRemote("AcceptQuest", "RemoteFunction")
@@ -77,6 +82,10 @@ function Remotes.Init()
 	
 	-- Breeding Remotes
 	_functions["BreedSpirits"] = createRemote("BreedSpirits", "RemoteFunction")
+	
+	-- Shop/Economy Remotes
+	_functions["PurchaseItem"] = createRemote("PurchaseItem", "RemoteFunction")
+	_events["GoldUpdate"] = createRemote("GoldUpdate", "RemoteEvent")
 	
 	print("✓ All Remote Events created")
 end

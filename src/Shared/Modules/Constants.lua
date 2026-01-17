@@ -268,6 +268,26 @@ Constants.COMBAT = {
 	MAX_DISTANCE = 10,
 	COOLDOWN = 0.5,
 	DAMAGE = 10,
+	CRITICAL_CHANCE = 0.15,
+	CRITICAL_MULTIPLIER = 2,
+}
+
+Constants.ENEMY = {
+	ZONE_DIFFICULTY_MULTIPLIERS = {
+		{MaxDistance = 100, Multiplier = 1.0},
+		{MaxDistance = 300, Multiplier = 1.5},
+		{MaxDistance = 500, Multiplier = 2.0},
+		{MaxDistance = math.huge, Multiplier = 3.0},
+	},
+	FLEE_HEALTH_THRESHOLD = 0.2,
+	TELEGRAPH_DURATION = 0.5,
+}
+
+Constants.CURRENCY_DROP_RATES = {
+	GlitchSlime = { Gold = { Min = 5, Max = 15 } },
+	GlitchKing = { Gold = { Min = 100, Max = 250 } },
+	GlitchOverlord = { Gold = { Min = 500, Max = 1000 } },
+	Default = { Gold = { Min = 1, Max = 5 } },
 }
 
 Constants.LEVELING = {
@@ -288,6 +308,14 @@ Constants.CLANS = {
 		Amount = 1000
 	},
 	MAX_MEMBERS = 50
+}
+
+Constants.SHOP_ITEMS = {
+	{id = "basic_sword", name = "Basic Sword", price = 100, type = "weapon", stats = {damage = 10}},
+	{id = "iron_sword", name = "Iron Sword", price = 500, type = "weapon", stats = {damage = 25}},
+	{id = "health_boost", name = "Health Boost", price = 200, type = "consumable", effect = "maxHealth", value = 20},
+	{id = "damage_boost", name = "Damage Boost", price = 300, type = "consumable", effect = "damage", value = 5},
+	{id = "speed_potion", name = "Speed Potion", price = 150, type = "consumable", effect = "speed", value = 10},
 }
 
 return Constants

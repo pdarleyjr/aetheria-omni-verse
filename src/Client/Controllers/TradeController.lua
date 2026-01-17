@@ -4,8 +4,10 @@ local Players = game:GetService("Players")
 
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Signal = require(ReplicatedStorage.Shared.Modules.Signal)
+local Maid = require(ReplicatedStorage.Shared.Modules.Maid)
 
 local TradeController = {}
+TradeController._maid = nil
 
 -- Signals for UI to listen to
 TradeController.TradeInviteReceived = Signal.new() -- (sender: Player)
@@ -15,13 +17,14 @@ TradeController.TradeCancelled = Signal.new() -- ()
 
 function TradeController:Init()
 	print("[TradeController] Init")
+	self._maid = Maid.new()
 	
 	self.TradeEvent = Remotes.GetEvent("TradeEvent")
 	self.TradeFunction = Remotes.GetFunction("TradeFunction")
 	
-	self.TradeEvent.OnClientEvent:Connect(function(action, ...)
+	self._maid:GiveTask(self.TradeEvent.OnClientEvent:Connect(function(action, ...)
 		self:HandleServerEvent(action, ...)
-	end)
+	end))
 end
 
 function TradeController:Start()

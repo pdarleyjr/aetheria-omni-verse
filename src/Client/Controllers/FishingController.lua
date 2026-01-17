@@ -6,8 +6,10 @@ local ContextActionService = game:GetService("ContextActionService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Remotes = require(Shared.Remotes)
+local Maid = require(Shared.Modules.Maid)
 
 local FishingController = {}
+FishingController._maid = nil
 
 -- Minigame Constants
 local BAR_HEIGHT = 300
@@ -21,6 +23,7 @@ local DECAY_SPEED = 10 -- % per second
 
 function FishingController:Init()
 	print("[FishingController] Init")
+	self._maid = Maid.new()
 	self.CastLineEvent = Remotes.GetEvent("CastLine")
 	self.CatchFishEvent = Remotes.GetEvent("CatchFish") -- Assuming this exists or will be used
 end
@@ -36,6 +39,14 @@ function FishingController:Start()
 	end, true, Enum.KeyCode.F, Enum.KeyCode.ButtonY)
 	
 	ContextActionService:SetTitle("Fish", "Fish")
+	
+	-- Cleanup on respawn
+	local player = Players.LocalPlayer
+	self._maid:GiveTask(player.CharacterAdded:Connect(function()
+		if self.IsFishing then
+			self.IsFishing = false
+		end
+	end))
 end
 
 function FishingController:AttemptStartFishing()
