@@ -50,6 +50,7 @@ function WorkspaceService:Start()
 	self:GenerateGlitchSpikes()
 	self:GenerateDecor()
 	self:GenerateHubDecor()
+	self:GenerateEnvironmentalParticles()
 	self:SpawnWilds()
 	self:SpawnThrone()
 	self:SpawnAzureSea()
@@ -457,6 +458,102 @@ function WorkspaceService:GenerateGlitchSpikes()
 	end
 	
 	print("[WorkspaceService] Generated Glitch Spikes")
+end
+
+function WorkspaceService:GenerateEnvironmentalParticles()
+	local particlesFolder = Instance.new("Folder")
+	particlesFolder.Name = "EnvironmentalParticles"
+	particlesFolder.Parent = Workspace
+	
+	-- Hub Fog
+	local hubFog = Instance.new("Part")
+	hubFog.Name = "HubFogEmitter"
+	hubFog.Size = Vector3.new(200, 1, 200)
+	hubFog.Position = Vector3.new(0, 2, 0)
+	hubFog.Anchored = true
+	hubFog.CanCollide = false
+	hubFog.Transparency = 1
+	hubFog.Parent = particlesFolder
+	
+	local fogEmitter = Instance.new("ParticleEmitter")
+	fogEmitter.Texture = "rbxassetid://241685484"
+	fogEmitter.Color = ColorSequence.new(Color3.fromRGB(150, 100, 200))
+	fogEmitter.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0),
+		NumberSequenceKeypoint.new(0.5, 15),
+		NumberSequenceKeypoint.new(1, 0)
+	})
+	fogEmitter.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.3, 0.8),
+		NumberSequenceKeypoint.new(0.7, 0.8),
+		NumberSequenceKeypoint.new(1, 1)
+	})
+	fogEmitter.Lifetime = NumberRange.new(8, 12)
+	fogEmitter.Speed = NumberRange.new(0.5, 2)
+	fogEmitter.SpreadAngle = Vector2.new(180, 180)
+	fogEmitter.Rate = 5
+	fogEmitter.RotSpeed = NumberRange.new(-20, 20)
+	fogEmitter.LightEmission = 0.2
+	fogEmitter.Parent = hubFog
+	
+	-- Floating Debris in Glitch Wastes
+	local glitchZone = Constants.ZONES["Glitch Wastes"]
+	if glitchZone then
+		local debrisEmitter = Instance.new("Part")
+		debrisEmitter.Name = "GlitchDebrisEmitter"
+		debrisEmitter.Size = Vector3.new(500, 1, 500)
+		debrisEmitter.Position = glitchZone.Center + Vector3.new(0, 10, 0)
+		debrisEmitter.Anchored = true
+		debrisEmitter.CanCollide = false
+		debrisEmitter.Transparency = 1
+		debrisEmitter.Parent = particlesFolder
+		
+		local debris = Instance.new("ParticleEmitter")
+		debris.Texture = "rbxassetid://243660364"
+		debris.Color = ColorSequence.new(Color3.fromRGB(255, 0, 100), Color3.fromRGB(100, 0, 255))
+		debris.Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.2),
+			NumberSequenceKeypoint.new(0.5, 0.8),
+			NumberSequenceKeypoint.new(1, 0.2)
+		})
+		debris.Transparency = NumberSequence.new(0.3, 0.8)
+		debris.Lifetime = NumberRange.new(5, 10)
+		debris.Speed = NumberRange.new(1, 4)
+		debris.SpreadAngle = Vector2.new(180, 180)
+		debris.Rate = 15
+		debris.Drag = 1
+		debris.RotSpeed = NumberRange.new(-100, 100)
+		debris.LightEmission = 0.5
+		debris.Parent = debrisEmitter
+	end
+	
+	-- Magical Sparkles in Azure Sea
+	local azureZone = Constants.ZONES["Azure Sea"]
+	if azureZone then
+		local sparkleEmitter = Instance.new("Part")
+		sparkleEmitter.Name = "SeaSparkleEmitter"
+		sparkleEmitter.Size = Vector3.new(800, 1, 800)
+		sparkleEmitter.Position = azureZone.Center + Vector3.new(0, 5, 0)
+		sparkleEmitter.Anchored = true
+		sparkleEmitter.CanCollide = false
+		sparkleEmitter.Transparency = 1
+		sparkleEmitter.Parent = particlesFolder
+		
+		local sparkles = Instance.new("ParticleEmitter")
+		sparkles.Texture = "rbxassetid://243098098"
+		sparkles.Color = ColorSequence.new(Color3.fromRGB(100, 200, 255), Color3.fromRGB(200, 255, 255))
+		sparkles.Size = NumberSequence.new(0.3, 0)
+		sparkles.Transparency = NumberSequence.new(0, 1)
+		sparkles.Lifetime = NumberRange.new(2, 4)
+		sparkles.Speed = NumberRange.new(2, 6)
+		sparkles.SpreadAngle = Vector2.new(180, 30)
+		sparkles.Rate = 20
+		sparkles.LightEmission = 1
+		sparkles.Parent = sparkleEmitter
+	end
+	
+	print("[WorkspaceService] Generated Environmental Particles")
 end
 
 return WorkspaceService

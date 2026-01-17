@@ -31,6 +31,7 @@ function Remotes.Init()
 	_events["AbilityCast"] = createRemote("AbilityCast", "RemoteEvent")
 	_events["ShowDamage"] = createRemote("ShowDamage", "RemoteEvent")
 	_events["OnCombatHit"] = createRemote("OnCombatHit", "RemoteEvent")
+	_events["OnEnemyDeath"] = createRemote("OnEnemyDeath", "RemoteEvent")
 	_events["CurrencyDrop"] = createRemote("CurrencyDrop", "RemoteEvent")
 	_events["RequestSkill"] = createRemote("RequestSkill", "RemoteEvent")
 	

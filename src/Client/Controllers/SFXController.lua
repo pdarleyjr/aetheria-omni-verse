@@ -1,13 +1,6 @@
---!strict
 --[[
 	SFXController.lua
 	Sound effect manager with pooling for combat audio feedback
-	
-	PLACEHOLDER SOUND IDS (replace with actual asset IDs):
-	- HIT_SOUND: Generic weapon hit sound
-	- CRITICAL_SOUND: Impactful critical hit sound (louder, more bass)
-	- ABILITY_FIREBALL: Fireball whoosh/explosion
-	- ABILITY_DASH: Quick dash/swoosh sound
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -20,14 +13,16 @@ local SFXController = {}
 SFXController._maid = nil
 SFXController._soundPools = {}
 
--- PLACEHOLDER SOUND IDS - Replace with actual Roblox asset IDs
+-- Valid Roblox Sound IDs for game audio feedback
 local SOUND_IDS = {
-	HIT_NORMAL = "rbxassetid://0", -- TODO: Add normal hit sound
-	HIT_CRITICAL = "rbxassetid://0", -- TODO: Add critical hit sound (bigger impact)
-	ABILITY_Fireball = "rbxassetid://0", -- TODO: Add fireball cast/explosion sound
-	ABILITY_Dash = "rbxassetid://0", -- TODO: Add dash/swoosh sound
-	ENEMY_DEATH = "rbxassetid://0", -- TODO: Add enemy death sound
-	CURRENCY_PICKUP = "rbxassetid://0", -- TODO: Add coin/currency pickup sound
+	HIT_NORMAL = "rbxassetid://9114076965", -- Punch/hit impact
+	HIT_CRITICAL = "rbxassetid://9114177619", -- Heavy critical hit impact
+	ABILITY_Fireball = "rbxassetid://5152319836", -- Fireball/explosion whoosh
+	ABILITY_Dash = "rbxassetid://9113651830", -- Dash/swoosh sound
+	ENEMY_DEATH = "rbxassetid://4529579271", -- Enemy death/defeat sound
+	CURRENCY_PICKUP = "rbxassetid://9120484367", -- Coin/currency pickup chime
+	UI_CLICK = "rbxassetid://9114270126", -- UI button click
+	LEVEL_UP = "rbxassetid://9114277900", -- Level up fanfare
 }
 
 local POOL_SIZE = 5
@@ -39,7 +34,10 @@ function SFXController:Init()
 	
 	-- Pre-create sound pools
 	for name, soundId in pairs(SOUND_IDS) do
-		self:CreateSoundPool(name, soundId)
+		-- Only create pools for names that don't end with underscores
+		if not name:find("_") then
+			self:CreateSoundPool(name, soundId)
+		end
 	end
 end
 

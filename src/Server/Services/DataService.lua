@@ -18,7 +18,7 @@ local PROFILE_TEMPLATE = {
 		Essence = 0,
 		Aether = 0,
 		Crystals = 0,
-		Gold = 0,
+		Gold = 1000, -- Starting Gold for new players
 	},
 	Stats = {
 		Level = 1,

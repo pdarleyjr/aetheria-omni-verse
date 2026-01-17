@@ -486,7 +486,7 @@ function UIController:CreateDialogueFrame(parent)
 	frame.Visible = false
 	frame.Parent = parent
 	self.DialogueFrame = frame
-    
+	
 	local nameLabel = Instance.new("TextLabel")
 	nameLabel.Name = "NameLabel"
 	nameLabel.Size = UDim2.new(0, 200, 0, 30)
@@ -1110,6 +1110,36 @@ end
 
 function UIController:FormatNumber(n)
 	return tostring(n)
+end
+
+-- Currency Display Methods
+function UIController:UpdateCurrencyDisplay(currencies)
+	if not currencies then return end
+	
+	if self.GoldLabel and currencies.Gold then
+		self.GoldLabel.Text = "🪙 Gold: " .. self:FormatNumber(currencies.Gold)
+	end
+	if self.EssenceLabel and currencies.Essence then
+		self.EssenceLabel.Text = "✨ Essence: " .. self:FormatNumber(currencies.Essence)
+	end
+	if self.AetherLabel and currencies.Aether then
+		self.AetherLabel.Text = "💎 Aether: " .. self:FormatNumber(currencies.Aether)
+	end
+	if self.CrystalsLabel and currencies.Crystals then
+		self.CrystalsLabel.Text = "🔮 Crystals: " .. self:FormatNumber(currencies.Crystals)
+	end
+end
+
+function UIController:UpdateGoldDisplay(newGold)
+	if self.GoldLabel then
+		self.GoldLabel.Text = "🪙 Gold: " .. self:FormatNumber(newGold)
+		
+		-- Pulse animation on update
+		local origSize = self.GoldLabel.TextSize
+		TweenService:Create(self.GoldLabel, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0, true), {
+			TextSize = origSize + 4
+		}):Play()
+	end
 end
 
 -- Panel Animation Helpers
