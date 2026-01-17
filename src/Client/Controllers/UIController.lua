@@ -51,9 +51,162 @@ local ANIM = {
 	EASING_DIRECTION = Enum.EasingDirection.Out,
 }
 
+-- Notification Types
+local NOTIFICATION_TYPES = {
+	success = { Icon = "✓", Color = Color3.fromRGB(0, 200, 100) },
+	warning = { Icon = "⚠", Color = Color3.fromRGB(255, 180, 0) },
+	error = { Icon = "✗", Color = Color3.fromRGB(255, 60, 60) },
+	info = { Icon = "ℹ", Color = Color3.fromRGB(0, 170, 255) },
+}
+
+--[[
+	UIAnimation Module
+	Reusable tween helpers for consistent UI animations
+]]
+local UIAnimation = {}
+
+function UIAnimation.AnimateOpen(frame, targetSize)
+	local originalSize = targetSize or frame.Size
+	frame.Size = UDim2.new(originalSize.X.Scale * 0.8, originalSize.X.Offset * 0.8, originalSize.Y.Scale * 0.8, originalSize.Y.Offset * 0.8)
+	frame.BackgroundTransparency = 1
+	frame.Visible = true
+	
+	local tween = TweenService:Create(frame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = originalSize,
+		BackgroundTransparency = THEME.GLASS_TRANSPARENCY
+	})
+	tween:Play()
+	return tween
+end
+
+function UIAnimation.AnimateClose(frame, callback)
+	local currentSize = frame.Size
+	local targetSize = UDim2.new(currentSize.X.Scale * 0.8, currentSize.X.Offset * 0.8, currentSize.Y.Scale * 0.8, currentSize.Y.Offset * 0.8)
+	
+	local tween = TweenService:Create(frame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = targetSize,
+		BackgroundTransparency = 1
+	})
+	tween:Play()
+	tween.Completed:Connect(function()
+		frame.Visible = false
+		frame.Size = currentSize
+		if callback then callback() end
+	end)
+	return tween
+end
+
+function UIAnimation.AnimateHover(button, entering)
+	local origSize = button:GetAttribute("OriginalSize") or button.Size
+	if not button:GetAttribute("OriginalSize") then
+		button:SetAttribute("OriginalSize", origSize)
+		button:SetAttribute("OriginalColor", button.BackgroundColor3)
+	end
+	
+	local origColor = button:GetAttribute("OriginalColor") or button.BackgroundColor3
+	
+	if entering then
+		local hoverSize = UDim2.new(origSize.X.Scale * 1.05, origSize.X.Offset * 1.05, origSize.Y.Scale * 1.05, origSize.Y.Offset * 1.05)
+		local hoverColor = Color3.new(
+			math.min(origColor.R * 1.15, 1),
+			math.min(origColor.G * 1.15, 1),
+			math.min(origColor.B * 1.15, 1)
+		)
+		TweenService:Create(button, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Size = hoverSize,
+			BackgroundColor3 = hoverColor
+		}):Play()
+	else
+		TweenService:Create(button, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Size = origSize,
+			BackgroundColor3 = origColor
+		}):Play()
+	end
+end
+
+function UIAnimation.AnimatePress(button)
+	local origSize = button:GetAttribute("OriginalSize") or button.Size
+	if not button:GetAttribute("OriginalSize") then
+		button:SetAttribute("OriginalSize", origSize)
+	end
+	
+	local pressSize = UDim2.new(origSize.X.Scale * 0.95, origSize.X.Offset * 0.95, origSize.Y.Scale * 0.95, origSize.Y.Offset * 0.95)
+	
+	local tween = TweenService:Create(button, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = pressSize
+	})
+	tween:Play()
+	
+	task.delay(0.1, function()
+		if button and button.Parent then
+			UIAnimation.AnimateHover(button, true)
+		end
+	end)
+end
+
+function UIAnimation.SlideIn(frame, direction, duration)
+	direction = direction or "right"
+	duration = duration or 0.3
+	
+	local targetPos = frame.Position
+	local startPos
+	
+	if direction == "right" then
+		startPos = UDim2.new(1.5, 0, targetPos.Y.Scale, targetPos.Y.Offset)
+	elseif direction == "left" then
+		startPos = UDim2.new(-0.5, -frame.Size.X.Offset, targetPos.Y.Scale, targetPos.Y.Offset)
+	elseif direction == "top" then
+		startPos = UDim2.new(targetPos.X.Scale, targetPos.X.Offset, -0.5, -frame.Size.Y.Offset)
+	elseif direction == "bottom" then
+		startPos = UDim2.new(targetPos.X.Scale, targetPos.X.Offset, 1.5, 0)
+	end
+	
+	frame.Position = startPos
+	frame.Visible = true
+	
+	local tween = TweenService:Create(frame, TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Position = targetPos
+	})
+	tween:Play()
+	return tween
+end
+
+function UIAnimation.SlideOut(frame, direction, duration, callback)
+	direction = direction or "right"
+	duration = duration or 0.25
+	
+	local currentPos = frame.Position
+	local targetPos
+	
+	if direction == "right" then
+		targetPos = UDim2.new(1.5, 0, currentPos.Y.Scale, currentPos.Y.Offset)
+	elseif direction == "left" then
+		targetPos = UDim2.new(-0.5, -frame.Size.X.Offset, currentPos.Y.Scale, currentPos.Y.Offset)
+	elseif direction == "top" then
+		targetPos = UDim2.new(currentPos.X.Scale, currentPos.X.Offset, -0.5, -frame.Size.Y.Offset)
+	elseif direction == "bottom" then
+		targetPos = UDim2.new(currentPos.X.Scale, currentPos.X.Offset, 1.5, 0)
+	end
+	
+	local tween = TweenService:Create(frame, TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+		Position = targetPos
+	})
+	tween:Play()
+	tween.Completed:Connect(function()
+		frame.Visible = false
+		frame.Position = currentPos
+		if callback then callback() end
+	end)
+	return tween
+end
+
 function UIController:Init()
 	self.Player = Players.LocalPlayer
 	self.PlayerGui = self.Player:WaitForChild("PlayerGui", 30)
+	
+	-- Notification stack tracking
+	self.NotificationStack = {}
+	self.NotificationYOffset = 20
 	
 	if not self.PlayerGui then
 		warn("[UIController] PlayerGui not found after 30 seconds!")
@@ -69,6 +222,12 @@ function UIController:Init()
 	local GoldUpdate = Remotes.GetEvent("GoldUpdate")
 	GoldUpdate.OnClientEvent:Connect(function(newGold)
 		self:UpdateGoldDisplay(newGold)
+	end)
+	
+	-- Purchase Result Event
+	local PurchaseResult = Remotes.GetEvent("PurchaseResult")
+	PurchaseResult.OnClientEvent:Connect(function(success, resultCode, itemName, cost)
+		self:ShowPurchaseConfirmation(success, resultCode, itemName, cost)
 	end)
 	
 	-- Boss Events
@@ -172,6 +331,9 @@ function UIController:CreateHUD()
 	
 	-- 1.99 Dialogue Frame
 	self:CreateDialogueFrame(screenGui)
+	
+	-- 2.0 Notification Container (top-right)
+	self:CreateNotificationContainer(screenGui)
 	
 	-- 2.0 Bottom Center HUD (Health & Essence)
 	self:CreateBottomHUD(screenGui)
@@ -818,87 +980,163 @@ function UIController:CreateShopUI(parent)
 end
 
 function UIController:CreateShopItem(parent, itemData, order)
-	local frame = Instance.new("Frame")
-	frame.Name = itemData.id
-	frame.Size = UDim2.new(1, -10, 0, 65)
-	frame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-	frame.BackgroundTransparency = 0.5
-	frame.LayoutOrder = order
-	frame.Parent = parent
+	local item = Instance.new("Frame")
+	item.Size = UDim2.new(1, -8, 0, 75)
+	item.BackgroundTransparency = 1
+	item.Parent = parent
+	local name = Instance.new("TextLabel")
+	name.Size = UDim2.new(1, -20, 0, 25)
+	name.BackgroundTransparency = 1
+	name.TextColor3 = THEME.TEXT_COLOR
+	name.TextSize = 16
+	name.Font = THEME.FONT
+	name.Parent = item
 	
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 8)
-	corner.Parent = frame
+	local price = Instance.new("TextLabel")
+	price.Size = UDim2.new(0, 100, 1, 0)
+	price.BackgroundTransparency = 1
+	price.TextColor3 = THEME.TEXT_COLOR
+	price.TextSize = 16
+	price.Font = THEME.FONT
+	price.Text = string.format("%s 🪙", itemData.cost)
+	price.Parent = item
 	
-	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Size = UDim2.new(0.55, 0, 0, 25)
-	nameLabel.Position = UDim2.new(0, 10, 0, 5)
-	nameLabel.BackgroundTransparency = 1
-	nameLabel.Text = itemData.name
-	nameLabel.TextColor3 = Color3.new(1, 1, 1)
-	nameLabel.Font = THEME.FONT
-	nameLabel.TextSize = 16
-	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-	nameLabel.Parent = frame
+	--/reset the anchorpoints for the new textlabels
+	name.Position = UDim2.new(0, 10, 0, 10)
+	price.Position = UDim2.new(1, -20, 1, -20)
 	
-	-- Type label
-	local typeLabel = Instance.new("TextLabel")
-	typeLabel.Size = UDim2.new(0.55, 0, 0, 18)
-	typeLabel.Position = UDim2.new(0, 10, 0, 28)
-	typeLabel.BackgroundTransparency = 1
-	typeLabel.Text = "[" .. itemData.type:upper() .. "]"
-	typeLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-	typeLabel.Font = Enum.Font.Gotham
-	typeLabel.TextSize = 12
-	typeLabel.TextXAlignment = Enum.TextXAlignment.Left
-	typeLabel.Parent = frame
+	name.Text = itemData.name
 	
-	local costLabel = Instance.new("TextLabel")
-	costLabel.Size = UDim2.new(0.55, 0, 0, 20)
-	costLabel.Position = UDim2.new(0, 10, 0, 44)
-	costLabel.BackgroundTransparency = 1
-	costLabel.Text = "🪙 " .. tostring(itemData.price) .. " Gold"
-	costLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
-	costLabel.Font = Enum.Font.Gotham
-	costLabel.TextSize = 14
-	costLabel.TextXAlignment = Enum.TextXAlignment.Left
-	costLabel.Parent = frame
+	-- create a table to hold the X and Y mouse coords
+	local mouse = {}
 	
-	local buyBtn = Instance.new("TextButton")
-	buyBtn.Size = UDim2.new(0, 80, 0, 40)
-	buyBtn.Position = UDim2.new(1, -90, 0.5, -20)
-	buyBtn.BackgroundColor3 = THEME.ACCENT_COLOR
-	buyBtn.Text = "BUY"
-	buyBtn.TextColor3 = Color3.new(1, 1, 1)
-	buyBtn.Font = THEME.FONT
-	buyBtn.TextSize = 14
-	buyBtn.Parent = frame
-	
-	local btnCorner = Instance.new("UICorner")
-	btnCorner.CornerRadius = UDim.new(0, 4)
-	btnCorner.Parent = buyBtn
-	
-	buyBtn.Activated:Connect(function()
-		buyBtn.Text = "..."
-		buyBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-		
-		local success, msg = self.PurchaseItemFunc:InvokeServer(itemData.id)
-		
-		if success then
-			buyBtn.Text = "✓"
-			buyBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
-			self:DisplayAnnouncement("Purchased " .. itemData.name .. "!", Color3.fromRGB(0, 255, 100))
-		else
-			buyBtn.Text = "✗"
-			buyBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-			self:DisplayAnnouncement(msg or "Purchase Failed", Color3.fromRGB(255, 50, 50))
-		end
-		
-		task.delay(1, function()
-			buyBtn.Text = "BUY"
-			buyBtn.BackgroundColor3 = THEME.ACCENT_COLOR
-		end)
+	-- add a mouse enter event to the item
+	item.MouseEnter:Connect(function()
+		mouse.X = game:GetService("UserInputService"):GetMouseLocation().X
+		mouse.Y = game:GetService("UserInputService"):GetMouseLocation().Y
 	end)
+	
+	-- add a mouse leave event to the item
+	item.MouseLeave:Connect(function()
+		mouse.X = nil
+		mouse.Y = nil
+	end)
+	
+	-- add a mouse button down event to the item
+	item.MouseButton1Down:Connect(function()
+		if mouse.X and mouse.Y then
+			local x = mouse.X
+			local y = mouse.Y
+			local but = self:CreateGlassPanel(UDim2.new(0, 120, 0, 50), UDim2.new(0, x, 0, y))
+			but.Name = "PurchaseConfirmation"
+			but.BackgroundTransparency = 1
+			but.Parent = game:GetService("CoreGui")
+			game:GetService("CoreGui").PurchaseConfirmation.Visible = false
+			but.Visible = true
+			local t = game:GetService("TweenService"):Create(but, TweenInfo.new(0.25), {BackgroundTransparency = 0})
+			t:Play()
+			t.Completed:Connect(function()
+				but:Destroy()
+				self:ShowPurchaseConfirmation(item.id, item.name, item.cost)
+			end)
+		end
+	end)
+end
+
+function UIController:ShowPurchaseConfirmation(itemId, itemName, cost)
+	local screenGui = self.ScreenGui
+	if not screenGui then return end
+	
+	-- Remove existing confirmation if any
+	local existing = screenGui:FindFirstChild("PurchaseConfirmation")
+	if existing then existing:Destroy() end
+	
+	local frame = self:CreateGlassPanel(UDim2.new(0, 300, 0, 180), UDim2.new(0.5, -150, 0.5, -90))
+	frame.Name = "PurchaseConfirmation"
+	frame.Parent = screenGui
+	
+	local title = Instance.new("TextLabel")
+	title.Size = UDim2.new(1, 0, 0, 40)
+	title.BackgroundTransparency = 1
+	title.Text = "Confirm Purchase"
+	title.TextColor3 = THEME.ACCENT_COLOR
+	title.Font = THEME.FONT
+	title.TextSize = 20
+	title.Parent = frame
+	
+	local desc = Instance.new("TextLabel")
+	desc.Size = UDim2.new(1, -20, 0, 50)
+	desc.Position = UDim2.new(0, 10, 0, 45)
+	desc.BackgroundTransparency = 1
+	desc.Text = "Buy " .. itemName .. " for 🪙" .. cost .. " Gold?"
+	desc.TextColor3 = THEME.TEXT_COLOR
+	desc.Font = Enum.Font.Gotham
+	desc.TextSize = 16
+	desc.TextWrapped = true
+	desc.Parent = frame
+	
+	-- Confirm Button
+	local confirmBtn = Instance.new("TextButton")
+	confirmBtn.Size = UDim2.new(0, 100, 0, 40)
+	confirmBtn.Position = UDim2.new(0.25, -50, 1, -55)
+	confirmBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 100)
+	confirmBtn.Text = "CONFIRM"
+	confirmBtn.TextColor3 = Color3.new(1, 1, 1)
+	confirmBtn.Font = THEME.FONT
+	confirmBtn.TextSize = 14
+	confirmBtn.Parent = frame
+	
+	local confirmCorner = Instance.new("UICorner")
+	confirmCorner.CornerRadius = UDim.new(0, 6)
+	confirmCorner.Parent = confirmBtn
+	
+	-- Cancel Button
+	local cancelBtn = Instance.new("TextButton")
+	cancelBtn.Size = UDim2.new(0, 100, 0, 40)
+	cancelBtn.Position = UDim2.new(0.75, -50, 1, -55)
+	cancelBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+	cancelBtn.Text = "CANCEL"
+	cancelBtn.TextColor3 = Color3.new(1, 1, 1)
+	cancelBtn.Font = THEME.FONT
+	cancelBtn.TextSize = 14
+	cancelBtn.Parent = frame
+	
+	local cancelCorner = Instance.new("UICorner")
+	cancelCorner.CornerRadius = UDim.new(0, 6)
+	cancelCorner.Parent = cancelBtn
+	
+	confirmBtn.Activated:Connect(function()
+		frame:Destroy()
+		self.PurchaseItemFunc:InvokeServer(itemId)
+	end)
+	
+	cancelBtn.Activated:Connect(function()
+		self:TweenPanelOut(frame, function() frame:Destroy() end)
+	end)
+	
+	self:TweenPanelIn(frame, UDim2.new(0, 300, 0, 180))
+end
+
+function UIController:ShowPurchaseResult(success, resultCode, itemName, cost)
+	local message, color
+	
+	if success then
+		message = "✓ Purchased " .. (itemName or "item") .. "!"
+		color = Color3.fromRGB(0, 255, 100)
+	else
+		if resultCode == "INSUFFICIENT_FUNDS" then
+			message = "✗ Insufficient Gold!"
+			color = Color3.fromRGB(255, 100, 50)
+		elseif resultCode == "ALREADY_OWNED" then
+			message = "✗ Already owned!"
+			color = Color3.fromRGB(255, 200, 50)
+		else
+			message = "✗ Purchase failed"
+			color = Color3.fromRGB(255, 50, 50)
+		end
+	end
+	
+	self:DisplayAnnouncement(message, color)
 end
 
 function UIController:ToggleShop()
@@ -1263,6 +1501,111 @@ function UIController:GetRaycastTarget()
 		return result.Instance
 	end
 	return nil
+end
+
+--[[
+	Notification System
+	Shows slide-in notifications from top-right, stacks multiple
+]]
+function UIController:CreateNotificationContainer(parent)
+	local container = Instance.new("Frame")
+	container.Name = "NotificationContainer"
+	container.Size = UDim2.new(0, 300, 1, -40)
+	container.Position = UDim2.new(1, -320, 0, 20)
+	container.BackgroundTransparency = 1
+	container.Parent = parent
+	self.NotificationContainer = container
+	
+	local layout = Instance.new("UIListLayout")
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Padding = UDim.new(0, 8)
+	layout.VerticalAlignment = Enum.VerticalAlignment.Top
+	layout.Parent = container
+end
+
+function UIController:ShowNotification(text, notifType, duration)
+	notifType = notifType or "info"
+	duration = duration or 4
+	
+	if not self.NotificationContainer then return end
+	
+	local typeData = NOTIFICATION_TYPES[notifType] or NOTIFICATION_TYPES.info
+	
+	-- Create notification frame
+	local frame = self:CreateGlassPanel(UDim2.new(1, 0, 0, 60), UDim2.new(0, 0, 0, 0))
+	frame.Name = "Notification"
+	frame.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+	frame.LayoutOrder = #self.NotificationStack + 1
+	
+	-- Accent bar
+	local accent = Instance.new("Frame")
+	accent.Size = UDim2.new(0, 4, 1, 0)
+	accent.BackgroundColor3 = typeData.Color
+	accent.BorderSizePixel = 0
+	accent.Parent = frame
+	
+	local accentCorner = Instance.new("UICorner")
+	accentCorner.CornerRadius = UDim.new(0, 2)
+	accentCorner.Parent = accent
+	
+	-- Icon
+	local icon = Instance.new("TextLabel")
+	icon.Size = UDim2.new(0, 30, 1, 0)
+	icon.Position = UDim2.new(0, 12, 0, 0)
+	icon.BackgroundTransparency = 1
+	icon.Text = typeData.Icon
+	icon.TextColor3 = typeData.Color
+	icon.Font = THEME.FONT
+	icon.TextSize = 24
+	icon.Parent = frame
+	
+	-- Text
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, -60, 1, 0)
+	label.Position = UDim2.new(0, 50, 0, 0)
+	label.BackgroundTransparency = 1
+	label.Text = text
+	label.TextColor3 = THEME.TEXT_COLOR
+	label.Font = Enum.Font.Gotham
+	label.TextSize = 14
+	label.TextWrapped = true
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = frame
+	
+	-- Add to container with slide animation
+	frame.Parent = self.NotificationContainer
+	table.insert(self.NotificationStack, frame)
+	
+	-- Slide in from right
+	local targetPos = frame.Position
+	frame.Position = UDim2.new(1.5, 0, targetPos.Y.Scale, targetPos.Y.Offset)
+	
+	TweenService:Create(frame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Position = targetPos
+	}):Play()
+	
+	-- Auto-dismiss
+	task.delay(duration, function()
+		if frame and frame.Parent then
+			local dismissTween = TweenService:Create(frame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+				Position = UDim2.new(1.5, 0, 0, 0),
+				BackgroundTransparency = 1
+			})
+			dismissTween:Play()
+			dismissTween.Completed:Connect(function()
+				-- Remove from stack
+				for i, notif in ipairs(self.NotificationStack) do
+					if notif == frame then
+						table.remove(self.NotificationStack, i)
+						break
+					end
+				end
+				frame:Destroy()
+			end)
+		end
+	end)
+	
+	return frame
 end
 
 return UIController

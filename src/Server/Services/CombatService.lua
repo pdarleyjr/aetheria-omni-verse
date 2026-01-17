@@ -4,9 +4,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Constants = require(ReplicatedStorage.Shared.Modules.Constants)
+local Maid = require(ReplicatedStorage.Shared.Modules.Maid)
 local DataService = require(script.Parent.DataService)
 
 local CombatService = {}
+local maid = Maid.new()
 local lastAttackTime = {}
 
 function CombatService:Init()
@@ -16,10 +18,12 @@ function CombatService:Init()
 	Remotes.GetEvent("ShowDamage") -- Pre-create to prevent client infinite yield
 	Remotes.GetEvent("OnCombatHit") -- Pre-create combat hit remote
 	Remotes.GetEvent("CurrencyDrop") -- Pre-create currency drop remote
+	Remotes.GetEvent("EnemyDeath") -- Pre-create enemy death remote for visual/audio feedback
+	Remotes.GetEvent("AbilityUsed") -- Pre-create ability usage remote
 	
-	attackRemote.OnServerEvent:Connect(function(player, target)
-		self:HandleAttack(player, target)
-	end)
+	maid:GiveTask(attackRemote.OnServerEvent:Connect(function(player, target, damageType)
+		self:HandleAttack(player, target, damageType)
+	end))
 end
 
 function CombatService:Start()
@@ -41,14 +45,13 @@ function CombatService:DropCurrency(player: Player, enemyName: string)
 		local amount = math.random(range.Min, range.Max)
 		data.Currency[currency] = (data.Currency[currency] or 0) + amount
 		
-		-- Notify client of currency drop
 		local currencyRemote = Remotes.GetEvent("CurrencyDrop")
 		currencyRemote:FireClient(player, currency, amount)
 		print(string.format("[CombatService] %s received %d %s", player.Name, amount, currency))
 	end
 end
 
-function CombatService:HandleAttack(player: Player, target: Instance?)
+function CombatService:HandleAttack(player: Player, target: Instance?, damageType: string?)
 	if not target or not target:IsA("Model") then return end
 	
 	local humanoid = target:FindFirstChild("Humanoid")
@@ -61,7 +64,7 @@ function CombatService:HandleAttack(player: Player, target: Instance?)
 	local lastTime = lastAttackTime[player.UserId] or 0
 	
 	if now - lastTime < Constants.COMBAT.COOLDOWN then
-		return -- Cooldown active
+		return
 	end
 	
 	lastAttackTime[player.UserId] = now
@@ -72,12 +75,13 @@ function CombatService:HandleAttack(player: Player, target: Instance?)
 	
 	local distance = (character.PrimaryPart.Position - rootPart.Position).Magnitude
 	if distance > Constants.COMBAT.MAX_DISTANCE then
-		return -- Too far
+		return
 	end
 	
 	-- 3. Calculate Damage (Base + Spirit)
 	local baseDamage = Constants.COMBAT.DAMAGE
 	local bonus = 0
+	local effectiveDamageType = damageType or "Physical"
 	
 	local data = DataService.GetData(player)
 	if data and data.Inventory then
@@ -87,6 +91,10 @@ function CombatService:HandleAttack(player: Player, target: Instance?)
 			if spirit and spirit.Stats then
 				bonus = spirit.Stats.Atk or 0
 			end
+			-- Use spirit's element type if no damage type specified
+			if spirit and spirit.Type and not damageType then
+				effectiveDamageType = spirit.Type
+			end
 		end
 	end
 	
@@ -95,32 +103,41 @@ function CombatService:HandleAttack(player: Player, target: Instance?)
 	local damage = math.floor((baseDamage + bonus) * critMultiplier)
 	
 	-- 5. Apply Damage
+	local wasAlive = humanoid.Health > 0
 	humanoid:TakeDamage(damage)
 	local hitPosition = rootPart.Position
-	print(string.format("[CombatService] %s dealt %d damage%s to %s", player.Name, damage, isCritical and " (CRITICAL!)" or "", target.Name))
+	local isDead = humanoid.Health <= 0
+	print(string.format("[CombatService] %s dealt %d %s damage%s to %s", player.Name, damage, effectiveDamageType, isCritical and " (CRITICAL!)" or "", target.Name))
 	
-	-- 6. Fire OnCombatHit for visual feedback (minimal data)
+	-- 6. Fire OnCombatHit for visual/audio feedback
 	local combatHitRemote = Remotes.GetEvent("OnCombatHit")
 	combatHitRemote:FireAllClients({
 		damage = damage,
 		isCritical = isCritical,
-		hitPosition = hitPosition
+		hitPosition = hitPosition,
+		damageType = effectiveDamageType,
 	})
 	
 	-- 7. Replicate Damage Numbers
 	local showDamageRemote = Remotes.GetEvent("ShowDamage")
-	showDamageRemote:FireAllClients(rootPart, damage, isCritical)
+	showDamageRemote:FireAllClients(rootPart, damage, isCritical, effectiveDamageType)
 	
-	-- 8. Check for enemy death and drop currency
-	if humanoid.Health <= 0 then
+	-- 8. Check for enemy death
+	if wasAlive and isDead then
 		local enemyName = target.Name
+		
+		-- Fire EnemyDeath event for death burst effects
+		local deathRemote = Remotes.GetEvent("EnemyDeath")
+		deathRemote:FireAllClients(hitPosition, effectiveDamageType)
+		
+		-- Drop currency
 		self:DropCurrency(player, enemyName)
 	end
 end
 
 -- Cleanup on player leaving
-Players.PlayerRemoving:Connect(function(player)
+maid:GiveTask(Players.PlayerRemoving:Connect(function(player)
 	lastAttackTime[player.UserId] = nil
-end)
+end))
 
 return CombatService

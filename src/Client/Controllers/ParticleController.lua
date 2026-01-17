@@ -1,6 +1,7 @@
 --[[
 	ParticleController.lua
 	Environmental particle system manager for ambient visual effects
+	NOTE: Combat visuals (damage numbers, hit effects, screen shake) are in VisualsController
 ]]
 
 local Players = game:GetService("Players")
@@ -9,6 +10,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local Debris = game:GetService("Debris")
 local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Maid = require(Shared.Modules.Maid)
@@ -19,6 +21,13 @@ ParticleController._maid = nil
 ParticleController._activeEmitters = {}
 ParticleController._zoneMaid = nil
 ParticleController._weaponTrails = {}
+ParticleController._environmentalEmitters = {}
+
+-- Performance limits
+local MAX_FOG_EMITTERS = 3
+local MAX_DEBRIS_EMITTERS = 3
+local MAX_DUST_EMITTERS = 3
+local HUB_RADIUS = 150
 
 function ParticleController:Init()
 	print("[ParticleController] Initializing...")
@@ -26,24 +35,20 @@ function ParticleController:Init()
 	self._zoneMaid = Maid.new()
 	self._activeEmitters = {}
 	self._weaponTrails = {}
+	self._environmentalEmitters = {
+		fog = {},
+		debris = {},
+		dust = {}
+	}
 	
-	-- Listen for combat events
-	local ShowDamage = Remotes.GetEvent("ShowDamage")
-	ShowDamage.OnClientEvent:Connect(function(position, damage, isCritical)
-		self:SpawnDamageNumber(position, damage, isCritical)
-	end)
-	
-	local OnCombatHit = Remotes.GetEvent("OnCombatHit")
-	OnCombatHit.OnClientEvent:Connect(function(hitPosition, hitType)
-		self:SpawnHitEffect(hitPosition, hitType)
-		self:DoScreenShake(hitType == "critical" and 0.4 or 0.2)
-	end)
-	
+	-- Listen for enemy death (environmental effect only - souls rising)
 	local OnEnemyDeath = Remotes.GetEvent("OnEnemyDeath")
-	OnEnemyDeath.OnClientEvent:Connect(function(position)
+	self._maid:GiveTask(OnEnemyDeath.OnClientEvent:Connect(function(position)
 		self:SpawnDeathEffect(position)
-		self:DoScreenShake(0.3)
-	end)
+	end))
+	
+	-- Spawn environmental effects
+	self:SpawnEnvironmentalEffects()
 end
 
 function ParticleController:Start()
@@ -56,6 +61,7 @@ function ParticleController:Start()
 		self:CleanupZoneEffects()
 		task.delay(1, function()
 			self:SpawnAmbientDust()
+			self:UpdateEnvironmentalIntensity()
 		end)
 	end))
 	
@@ -70,46 +76,226 @@ function ParticleController:Start()
 	if player.Character then
 		self:SpawnAmbientDust()
 	end
+	
+	-- Update environmental intensity based on player position
+	self._maid:GiveTask(RunService.Heartbeat:Connect(function()
+		self:UpdateEnvironmentalIntensity()
+	end))
 end
 
-function ParticleController:SpawnFogEmitter(position)
-	local part = Instance.new("Part")
-	part.Name = "FogEmitter"
-	part.Size = Vector3.new(20, 1, 20)
-	part.Position = position
-	part.Anchored = true
-	part.CanCollide = false
-	part.Transparency = 1
-	part.Parent = Workspace
+--[[
+	Environmental "Cohesive Chaos" Particles
+	Creates atmospheric effects that increase with distance from Hub
+]]
+function ParticleController:SpawnEnvironmentalEffects()
+	-- Create fog layer attached to Workspace
+	self:SpawnVolumetricFog()
 	
-	local fog = Instance.new("ParticleEmitter")
-	fog.Name = "GroundFog"
-	fog.Texture = "rbxassetid://243660364" -- Soft cloud texture
-	fog.Color = ColorSequence.new(Color3.fromRGB(200, 200, 220))
-	fog.Size = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0),
-		NumberSequenceKeypoint.new(0.2, 8),
-		NumberSequenceKeypoint.new(1, 12)
-	})
-	fog.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 1),
-		NumberSequenceKeypoint.new(0.3, 0.7),
-		NumberSequenceKeypoint.new(0.7, 0.7),
-		NumberSequenceKeypoint.new(1, 1)
-	})
-	fog.Lifetime = NumberRange.new(8, 12)
-	fog.Rate = 3
-	fog.Speed = NumberRange.new(0.5, 1.5)
-	fog.SpreadAngle = Vector2.new(180, 0)
-	fog.Rotation = NumberRange.new(0, 360)
-	fog.RotSpeed = NumberRange.new(-10, 10)
-	fog.EmissionDirection = Enum.NormalId.Top
-	fog.Parent = part
+	-- Create floating debris/ash
+	self:SpawnFloatingAsh()
 	
-	table.insert(self._activeEmitters, part)
-	self._zoneMaid:GiveTask(part)
+	-- Create ambient dust motes with light interaction
+	self:SpawnLightReactiveDust()
+end
+
+function ParticleController:SpawnVolumetricFog()
+	-- Cleanup existing
+	for _, emitter in ipairs(self._environmentalEmitters.fog) do
+		if emitter and emitter.Parent then
+			emitter:Destroy()
+		end
+	end
+	self._environmentalEmitters.fog = {}
 	
-	return part
+	local player = Players.LocalPlayer
+	local character = player.Character
+	if not character then return end
+	
+	for i = 1, MAX_FOG_EMITTERS do
+		local part = Instance.new("Part")
+		part.Name = "VolumetricFog_" .. i
+		part.Size = Vector3.new(100, 1, 100)
+		part.Position = Vector3.new(0, 2, 0) + Vector3.new((i - 2) * 80, 0, 0)
+		part.Anchored = true
+		part.CanCollide = false
+		part.Transparency = 1
+		part.Parent = Workspace
+		
+		local fog = Instance.new("ParticleEmitter")
+		fog.Name = "GroundFog"
+		fog.Texture = "rbxassetid://243660364"
+		fog.Color = ColorSequence.new(Color3.fromRGB(180, 180, 200))
+		fog.Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0),
+			NumberSequenceKeypoint.new(0.3, 15),
+			NumberSequenceKeypoint.new(1, 20)
+		})
+		fog.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(0.2, 0.85),
+			NumberSequenceKeypoint.new(0.8, 0.85),
+			NumberSequenceKeypoint.new(1, 1)
+		})
+		fog.Lifetime = NumberRange.new(10, 15)
+		fog.Rate = 1 -- Low rate, slow-moving
+		fog.Speed = NumberRange.new(0.2, 0.8)
+		fog.SpreadAngle = Vector2.new(180, 0)
+		fog.Rotation = NumberRange.new(0, 360)
+		fog.RotSpeed = NumberRange.new(-5, 5)
+		fog.EmissionDirection = Enum.NormalId.Top
+		fog.Parent = part
+		
+		table.insert(self._environmentalEmitters.fog, part)
+		self._maid:GiveTask(part)
+	end
+end
+
+function ParticleController:SpawnFloatingAsh()
+	-- Cleanup existing
+	for _, emitter in ipairs(self._environmentalEmitters.debris) do
+		if emitter and emitter.Parent then
+			emitter:Destroy()
+		end
+	end
+	self._environmentalEmitters.debris = {}
+	
+	for i = 1, MAX_DEBRIS_EMITTERS do
+		local part = Instance.new("Part")
+		part.Name = "FloatingAsh_" .. i
+		part.Size = Vector3.new(80, 40, 80)
+		part.Position = Vector3.new(0, 25, 0) + Vector3.new((i - 2) * 60, 0, (i - 2) * 30)
+		part.Anchored = true
+		part.CanCollide = false
+		part.Transparency = 1
+		part.Parent = Workspace
+		
+		local ash = Instance.new("ParticleEmitter")
+		ash.Name = "FloatingAsh"
+		ash.Texture = "rbxassetid://304846479"
+		ash.Color = ColorSequence.new(Color3.fromRGB(120, 110, 100), Color3.fromRGB(80, 75, 70))
+		ash.Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.05),
+			NumberSequenceKeypoint.new(0.5, 0.15),
+			NumberSequenceKeypoint.new(1, 0.05)
+		})
+		ash.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(0.3, 0.4),
+			NumberSequenceKeypoint.new(0.7, 0.4),
+			NumberSequenceKeypoint.new(1, 1)
+		})
+		ash.Lifetime = NumberRange.new(8, 15)
+		ash.Rate = 2 -- Sparse
+		ash.Speed = NumberRange.new(0.1, 0.5)
+		ash.SpreadAngle = Vector2.new(360, 360)
+		ash.Rotation = NumberRange.new(0, 360)
+		ash.RotSpeed = NumberRange.new(-20, 20)
+		ash.Acceleration = Vector3.new(0, -0.05, 0) -- Very slow fall
+		ash.Drag = 1
+		ash.Parent = part
+		
+		table.insert(self._environmentalEmitters.debris, part)
+		self._maid:GiveTask(part)
+	end
+end
+
+function ParticleController:SpawnLightReactiveDust()
+	-- Cleanup existing
+	for _, emitter in ipairs(self._environmentalEmitters.dust) do
+		if emitter and emitter.Parent then
+			emitter:Destroy()
+		end
+	end
+	self._environmentalEmitters.dust = {}
+	
+	for i = 1, MAX_DUST_EMITTERS do
+		local part = Instance.new("Part")
+		part.Name = "DustMotes_" .. i
+		part.Size = Vector3.new(60, 30, 60)
+		part.Position = Vector3.new(0, 15, 0) + Vector3.new((i - 2) * 50, 0, (i - 2) * 25)
+		part.Anchored = true
+		part.CanCollide = false
+		part.Transparency = 1
+		part.Parent = Workspace
+		
+		local dust = Instance.new("ParticleEmitter")
+		dust.Name = "LightDust"
+		dust.Texture = "rbxassetid://241685484"
+		dust.Color = ColorSequence.new(Color3.fromRGB(255, 250, 230))
+		dust.Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0),
+			NumberSequenceKeypoint.new(0.3, 0.1),
+			NumberSequenceKeypoint.new(0.7, 0.1),
+			NumberSequenceKeypoint.new(1, 0)
+		})
+		dust.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(0.3, 0.5),
+			NumberSequenceKeypoint.new(0.7, 0.5),
+			NumberSequenceKeypoint.new(1, 1)
+		})
+		dust.Lifetime = NumberRange.new(3, 6)
+		dust.Rate = 3
+		dust.Speed = NumberRange.new(0.05, 0.3)
+		dust.SpreadAngle = Vector2.new(360, 360)
+		dust.Rotation = NumberRange.new(0, 360)
+		dust.LightEmission = 0.4 -- Reacts to lighting
+		dust.LightInfluence = 0.8 -- High light influence
+		dust.Parent = part
+		
+		table.insert(self._environmentalEmitters.dust, part)
+		self._maid:GiveTask(part)
+	end
+end
+
+function ParticleController:UpdateEnvironmentalIntensity()
+	local player = Players.LocalPlayer
+	local character = player.Character
+	if not character or not character.PrimaryPart then return end
+	
+	local playerPos = character.PrimaryPart.Position
+	local distanceFromHub = playerPos.Magnitude
+	
+	-- Calculate intensity factor (0 at hub, 1 at max distance)
+	local intensity = math.clamp((distanceFromHub - HUB_RADIUS) / 500, 0, 1)
+	
+	-- Update fog emitter positions to follow player and adjust intensity
+	for _, fogPart in ipairs(self._environmentalEmitters.fog) do
+		if fogPart and fogPart.Parent then
+			-- Move fog near player
+			fogPart.Position = Vector3.new(playerPos.X, 2, playerPos.Z) + Vector3.new(math.random(-50, 50), 0, math.random(-50, 50))
+			
+			local emitter = fogPart:FindFirstChild("GroundFog")
+			if emitter then
+				emitter.Rate = 0.5 + (intensity * 2) -- 0.5-2.5 rate based on distance
+			end
+		end
+	end
+	
+	-- Update debris/ash intensity
+	for _, ashPart in ipairs(self._environmentalEmitters.debris) do
+		if ashPart and ashPart.Parent then
+			ashPart.Position = Vector3.new(playerPos.X, 25, playerPos.Z) + Vector3.new(math.random(-40, 40), math.random(-10, 10), math.random(-40, 40))
+			
+			local emitter = ashPart:FindFirstChild("FloatingAsh")
+			if emitter then
+				emitter.Rate = 1 + (intensity * 4) -- 1-5 rate based on distance
+				emitter.Speed = NumberRange.new(0.1 + intensity * 0.3, 0.5 + intensity * 1)
+			end
+		end
+	end
+	
+	-- Update dust motes
+	for _, dustPart in ipairs(self._environmentalEmitters.dust) do
+		if dustPart and dustPart.Parent then
+			dustPart.Position = Vector3.new(playerPos.X, 15, playerPos.Z) + Vector3.new(math.random(-30, 30), math.random(-5, 10), math.random(-30, 30))
+			
+			local emitter = dustPart:FindFirstChild("LightDust")
+			if emitter then
+				emitter.Rate = 2 + (intensity * 5) -- 2-7 rate based on distance
+			end
+		end
+	end
 end
 
 function ParticleController:SpawnFloatingDebris(region)
@@ -196,34 +382,6 @@ function ParticleController:SpawnAmbientDust()
 	return dust
 end
 
-function ParticleController:SpawnHitEffect(position, hitType)
-	local part = Instance.new("Part")
-	part.Name = "HitEffect"
-	part.Size = Vector3.new(1, 1, 1)
-	part.Position = position
-	part.Anchored = true
-	part.CanCollide = false
-	part.Transparency = 1
-	part.Parent = Workspace
-	
-	local emitter = Instance.new("ParticleEmitter")
-	emitter.Texture = "rbxassetid://243660364"
-	emitter.Color = ColorSequence.new(hitType == "critical" and Color3.fromRGB(255, 200, 0) or Color3.fromRGB(255, 100, 100))
-	emitter.Size = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.5),
-		NumberSequenceKeypoint.new(1, 0)
-	})
-	emitter.Transparency = NumberSequence.new(0, 1)
-	emitter.Lifetime = NumberRange.new(0.3, 0.5)
-	emitter.Speed = NumberRange.new(5, 10)
-	emitter.SpreadAngle = Vector2.new(180, 180)
-	emitter.Drag = 3
-	emitter.Parent = part
-	emitter:Emit(hitType == "critical" and 20 or 10)
-	
-	Debris:AddItem(part, 1)
-end
-
 function ParticleController:SpawnDeathEffect(position)
 	local part = Instance.new("Part")
 	part.Name = "DeathEffect"
@@ -252,76 +410,6 @@ function ParticleController:SpawnDeathEffect(position)
 	emitter:Emit(30)
 	
 	Debris:AddItem(part, 2)
-end
-
-function ParticleController:SpawnDamageNumber(position, damage, isCritical)
-	local player = Players.LocalPlayer
-	local playerGui = player:FindFirstChild("PlayerGui")
-	if not playerGui then return end
-	
-	local billboardGui = Instance.new("BillboardGui")
-	billboardGui.Name = "DamageNumber"
-	billboardGui.Size = UDim2.new(0, 100, 0, 50)
-	billboardGui.StudsOffset = Vector3.new(0, 2, 0)
-	billboardGui.AlwaysOnTop = true
-	billboardGui.Adornee = nil
-	
-	local part = Instance.new("Part")
-	part.Name = "DamageAnchor"
-	part.Size = Vector3.new(0.1, 0.1, 0.1)
-	part.Position = position + Vector3.new(math.random(-1, 1), 1, math.random(-1, 1))
-	part.Anchored = true
-	part.CanCollide = false
-	part.Transparency = 1
-	part.Parent = Workspace
-	
-	billboardGui.Adornee = part
-	billboardGui.Parent = playerGui
-	
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(1, 0, 1, 0)
-	label.BackgroundTransparency = 1
-	label.Text = isCritical and ("💥" .. tostring(math.floor(damage)) .. "!") or tostring(math.floor(damage))
-	label.TextColor3 = isCritical and Color3.fromRGB(255, 215, 0) or Color3.fromRGB(255, 255, 255)
-	label.TextStrokeColor3 = Color3.new(0, 0, 0)
-	label.TextStrokeTransparency = 0
-	label.Font = Enum.Font.GothamBold
-	label.TextSize = isCritical and 28 or 22
-	label.TextScaled = false
-	label.Parent = billboardGui
-	
-	-- Animate upward and fade
-	local tweenInfo = TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	TweenService:Create(part, tweenInfo, {Position = part.Position + Vector3.new(0, 3, 0)}):Play()
-	TweenService:Create(label, tweenInfo, {TextTransparency = 1, TextStrokeTransparency = 1}):Play()
-	
-	Debris:AddItem(part, 1.5)
-	Debris:AddItem(billboardGui, 1.5)
-end
-
-function ParticleController:DoScreenShake(intensity)
-	local camera = Workspace.CurrentCamera
-	if not camera then return end
-	
-	local originalCFrame = camera.CFrame
-	local shakeDuration = 0.2
-	local startTime = tick()
-	
-	local connection
-	connection = RunService.RenderStepped:Connect(function()
-		local elapsed = tick() - startTime
-		if elapsed >= shakeDuration then
-			connection:Disconnect()
-			return
-		end
-		
-		local progress = elapsed / shakeDuration
-		local currentIntensity = intensity * (1 - progress)
-		local offsetX = (math.random() - 0.5) * 2 * currentIntensity
-		local offsetY = (math.random() - 0.5) * 2 * currentIntensity
-		
-		camera.CFrame = camera.CFrame * CFrame.new(offsetX, offsetY, 0)
-	end)
 end
 
 function ParticleController:CreateWeaponTrail(weapon)

@@ -6,8 +6,10 @@ local Players = game:GetService("Players")
 local Constants = require(ReplicatedStorage.Shared.Modules.Constants)
 local Signal = require(ReplicatedStorage.Shared.Modules.Signal)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Maid = require(ReplicatedStorage.Shared.Modules.Maid)
 
 local BossService = {}
+local maid = Maid.new()
 BossService.BossModel = nil
 BossService.CurrentHealth = 0
 BossService.MaxHealth = 0
@@ -21,9 +23,9 @@ function BossService:Init()
 	self.BossAttack = Remotes.GetEvent("BossAttack")
 	self.BossDefeated = Remotes.GetEvent("BossDefeated")
 	
-	Players.PlayerAdded:Connect(function(player)
+	maid:GiveTask(Players.PlayerAdded:Connect(function(player)
 		self:OnPlayerAdded(player)
-	end)
+	end))
 end
 
 function BossService:Start()
@@ -35,9 +37,9 @@ function BossService:Start()
 	end)
 	
 	-- Game Loop
-	RunService.Heartbeat:Connect(function(dt)
+	maid:GiveTask(RunService.Heartbeat:Connect(function(dt)
 		self:Update(dt)
-	end)
+	end))
 end
 
 function BossService:OnPlayerAdded(player)

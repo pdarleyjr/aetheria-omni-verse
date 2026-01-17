@@ -5,6 +5,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 
 local Constants = require(ReplicatedStorage.Shared.Modules.Constants)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Maid = require(ReplicatedStorage.Shared.Modules.Maid)
 -- We need to wait for DataService to be loaded. 
 -- Since we are in the same folder and loaded by Main, we can require it directly if we knew the order,
 -- or use the global _G.GetData which DataService sets up.
@@ -15,6 +16,8 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 -- So inside Init/Start, we can access it.
 
 local SpiritService = {}
+local maid = Maid.new()
+local playerMaids = {} -- Per-player cleanup
 local WorkspaceService = require(script.Parent.WorkspaceService)
 
 function SpiritService:Init()
@@ -22,18 +25,32 @@ function SpiritService:Init()
 	
 	-- Listen for EquipSpirit
 	local EquipSpiritEvent = Remotes.GetEvent("EquipSpirit")
-	EquipSpiritEvent.OnServerEvent:Connect(function(player, spiritUniqueId)
+	maid:GiveTask(EquipSpiritEvent.OnServerEvent:Connect(function(player, spiritUniqueId)
 		self:EquipSpirit(player, spiritUniqueId)
-	end)
+	end))
 
 	-- Listen for players
-	Players.PlayerAdded:Connect(function(player)
+	maid:GiveTask(Players.PlayerAdded:Connect(function(player)
 		self:OnPlayerAdded(player)
-		player.CharacterAdded:Connect(function(char)
+		
+		-- Create per-player maid for CharacterAdded
+		local playerMaid = Maid.new()
+		playerMaids[player] = playerMaid
+		maid:GiveTask(playerMaid)
+		
+		playerMaid:GiveTask(player.CharacterAdded:Connect(function(char)
 			task.wait(0.5)
 			self:RefreshSpiritVisual(player)
-		end)
-	end)
+		end))
+	end))
+	
+	-- Cleanup per-player maids when leaving
+	maid:GiveTask(Players.PlayerRemoving:Connect(function(player)
+		if playerMaids[player] then
+			playerMaids[player]:DoCleaning()
+			playerMaids[player] = nil
+		end
+	end))
 	
 	-- Handle existing players
 	for _, player in ipairs(Players:GetPlayers()) do

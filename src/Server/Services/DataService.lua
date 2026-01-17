@@ -5,12 +5,14 @@ local RunService = game:GetService("RunService")
 
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local UpdateHUDEvent = Remotes.GetEvent("UpdateHUD")
+local Maid = require(ReplicatedStorage.Shared.Modules.Maid)
 
 -- Assume ProfileService is in Shared/Modules based on previous step
 -- In a real scenario, it might be in ServerScriptService, but we placed the mock in Shared.
 local ProfileService = require(ReplicatedStorage.Shared.Modules.ProfileService)
 
 local DataService = {}
+local maid = Maid.new()
 
 -- // SCHEMA DEFINITION //
 local PROFILE_TEMPLATE = {
@@ -24,15 +26,28 @@ local PROFILE_TEMPLATE = {
 		Level = 1,
 		EXP = 0,
 		PlayTime = 0,
+		MaxHealth = 100,
+		Attack = 10,
+		Speed = 16,
 	},
 	Inventory = {
 		Spirits = {},
 		Items = {},
+		OwnedWeapons = {},
+		OwnedCosmetics = {},
+		Consumables = {},
+		EquippedWeapon = nil,
+		EquippedCosmetics = {},
 		Escrow = { -- Items currently in active trade
 			Spirits = {},
 			Items = {}
 		}
-	}, 
+	},
+	StatUpgrades = {
+		MaxHealth = 0,
+		Attack = 0,
+		Speed = 0,
+	},
 }
 
 local ProfileStore = ProfileService.GetProfileStore("PlayerData_Test_001", PROFILE_TEMPLATE)
@@ -158,6 +173,18 @@ function DataService.RemoveGold(player: Player, amount: number)
 	return result
 end
 
+function DataService.SetGold(player: Player, amount: number)
+	local data = DataService.GetData(player)
+	if data and data.Currencies then
+		data.Currencies.Gold = math.max(0, amount)
+		local GoldUpdate = Remotes.GetEvent("GoldUpdate")
+		GoldUpdate:FireClient(player, DataService.GetGold(player))
+		DataService.UpdateClientHUD(player)
+		return true
+	end
+	return false
+end
+
 function DataService.AddItem(player: Player, itemData)
 	local data = DataService.GetData(player)
 	if not data then return false end
@@ -184,26 +211,26 @@ end
 function DataService.MoveToEscrow(player: Player, category: string, itemId: string)
 	local data = DataService.GetData(player)
 	if not data then return false end
-	
+    
 	local inventory = data.Inventory
 	if not inventory[category] then return false end
-	
+    
 	local item = inventory[category][itemId]
 	if not item then return false end
-	
+    
 	-- Check if equipped (specific to Spirits)
 	if category == "Spirits" and inventory.EquippedSpirit == itemId then
 		return false -- Cannot trade equipped spirit
 	end
-	
+    
 	-- Initialize Escrow category if missing
 	if not inventory.Escrow then inventory.Escrow = { Spirits = {}, Items = {} } end
 	if not inventory.Escrow[category] then inventory.Escrow[category] = {} end
-	
+    
 	-- Move item
 	inventory.Escrow[category][itemId] = item
 	inventory[category][itemId] = nil
-	
+    
 	DataService.UpdateClientHUD(player)
 	return true
 end
@@ -211,17 +238,17 @@ end
 function DataService.RestoreFromEscrow(player: Player, category: string, itemId: string)
 	local data = DataService.GetData(player)
 	if not data then return false end
-	
+    
 	local inventory = data.Inventory
 	if not inventory.Escrow or not inventory.Escrow[category] then return false end
-	
+    
 	local item = inventory.Escrow[category][itemId]
 	if not item then return false end
-	
+    
 	-- Move back
 	inventory[category][itemId] = item
 	inventory.Escrow[category][itemId] = nil
-	
+    
 	DataService.UpdateClientHUD(player)
 	return true
 end
@@ -274,14 +301,180 @@ function DataService.ExecuteTrade(playerA: Player, playerB: Player, offerA: any,
 	return true
 end
 
+function DataService.AddWeapon(player: Player, weaponData)
+	local data = DataService.GetData(player)
+	if not data then return false end
+	
+	if not data.Inventory.OwnedWeapons then
+		data.Inventory.OwnedWeapons = {}
+	end
+	
+	local uniqueId = weaponData.id .. "_" .. os.time() .. "_" .. math.random(1000, 9999)
+	data.Inventory.OwnedWeapons[uniqueId] = {
+		id = weaponData.id,
+		name = weaponData.name,
+		rarity = weaponData.rarity,
+		stats = weaponData.stats,
+		acquiredAt = os.time()
+	}
+	
+	DataService.UpdateClientHUD(player)
+	return true, uniqueId
+end
+
+function DataService.AddCosmetic(player: Player, cosmeticData)
+	local data = DataService.GetData(player)
+	if not data then return false end
+	
+	if not data.Inventory.OwnedCosmetics then
+		data.Inventory.OwnedCosmetics = {}
+	end
+	
+	-- Cosmetics are unique, check if already owned
+	if data.Inventory.OwnedCosmetics[cosmeticData.id] then
+		return false, "Already owned"
+	end
+	
+	data.Inventory.OwnedCosmetics[cosmeticData.id] = {
+		id = cosmeticData.id,
+		name = cosmeticData.name,
+		cosmeticType = cosmeticData.cosmeticType,
+		assetId = cosmeticData.assetId,
+		acquiredAt = os.time()
+	}
+	
+	DataService.UpdateClientHUD(player)
+	return true, cosmeticData.id
+end
+
+function DataService.AddConsumable(player: Player, consumableData)
+	local data = DataService.GetData(player)
+	if not data then return false end
+	
+	if not data.Inventory.Consumables then
+		data.Inventory.Consumables = {}
+	end
+	
+	-- Stack consumables by id
+	if not data.Inventory.Consumables[consumableData.id] then
+		data.Inventory.Consumables[consumableData.id] = {
+			id = consumableData.id,
+			name = consumableData.name,
+			effect = consumableData.effect,
+			value = consumableData.value,
+			duration = consumableData.duration,
+			count = 0
+		}
+	end
+	
+	data.Inventory.Consumables[consumableData.id].count = data.Inventory.Consumables[consumableData.id].count + 1
+	
+	DataService.UpdateClientHUD(player)
+	return true, consumableData.id
+end
+
+function DataService.ApplyStatUpgrade(player: Player, statName: string, value: number)
+	local data = DataService.GetData(player)
+	if not data then return false end
+	
+	if not data.Stats[statName] then
+		return false, "Invalid stat"
+	end
+	
+	if not data.StatUpgrades then
+		data.StatUpgrades = { MaxHealth = 0, Attack = 0, Speed = 0 }
+	end
+	
+	data.Stats[statName] = data.Stats[statName] + value
+	data.StatUpgrades[statName] = (data.StatUpgrades[statName] or 0) + value
+	
+	DataService.UpdateClientHUD(player)
+	return true
+end
+
+function DataService.OwnsWeapon(player: Player, weaponId: string)
+	local data = DataService.GetData(player)
+	if not data or not data.Inventory.OwnedWeapons then return false end
+	
+	for _, weapon in pairs(data.Inventory.OwnedWeapons) do
+		if weapon.id == weaponId then
+			return true
+		end
+	end
+	return false
+end
+
+function DataService.OwnsCosmetic(player: Player, cosmeticId: string)
+	local data = DataService.GetData(player)
+	if not data or not data.Inventory.OwnedCosmetics then return false end
+	return data.Inventory.OwnedCosmetics[cosmeticId] ~= nil
+end
+
+function DataService.PurchaseWeapon(player: Player, weaponId: string)
+	local data = DataService.GetData(player)
+	if not data or not data.Inventory then return false end
+	
+	found = false
+	for _, w in pairs(data.Inventory.OwnedWeapons) do
+		if w == weaponId then
+			found = true
+			break
+		end
+	end
+	
+	if found then return false end
+	
+	table.insert(data.Inventory.OwnedWeapons, weaponId)
+	DataService.UpdateClientHUD(player)
+	return true
+end
+
+function DataService.PurchaseCosmetic(player: Player, cosmeticId: string)
+	local data = DataService.GetData(player)
+	if not data or not data.Inventory then return false end
+	
+	found = false
+	for _, c in pairs(data.Inventory.OwnedCosmetics) do
+		if c == cosmeticId then
+			found = true
+			break
+		end
+	end
+	
+	if found then return false end
+	
+	table.insert(data.Inventory.OwnedCosmetics, cosmeticId)
+	DataService.UpdateClientHUD(player)
+	return true
+end
+
+function DataService.UseConsumable(player: Player, consumableId: string)
+	local data = DataService.GetData(player)
+	if not data or not data.Inventory then return false end
+	
+	found = false
+	for _, c in pairs(data.Inventory.Consumables) do
+		if c == consumableId then
+			found = true
+			break
+		end
+	end
+	
+	if found then return false end
+	
+	table.insert(data.Inventory.Consumables, consumableId)
+	DataService.UpdateClientHUD(player)
+	return true
+end
+
 -- // INITIALIZATION //
 
 for _, player in ipairs(Players:GetPlayers()) do
 	task.spawn(PlayerAdded, player)
 end
 
-Players.PlayerAdded:Connect(PlayerAdded)
-Players.PlayerRemoving:Connect(PlayerRemoving)
+maid:GiveTask(Players.PlayerAdded:Connect(PlayerAdded))
+maid:GiveTask(Players.PlayerRemoving:Connect(PlayerRemoving))
 
 -- // GLOBAL ACCESS //
 _G.GetData = DataService.GetData

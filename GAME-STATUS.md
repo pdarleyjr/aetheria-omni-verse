@@ -101,33 +101,37 @@
 
 ---
 
-## ✅ Phase 37: Game Feel, Content Depth & Economy Integration (COMPLETE)
+## ✅ Phase 37: Game Feel, Content Depth & Economy Integration
 
-**Combat Juice System:**
-- Critical hits (15% chance, 2x damage multiplier)
-- Screen shake on impacts
-- Hitstop for impactful feedback
-- [`SFXController.lua`](src/Client/Controllers/SFXController.lua) - Sound effects system
-- Damage numbers with animations
-- Weapon trails for visual feedback
+---
 
-**Enemy AI System:**
-- 5-state machine: Idle → Alert → Chase → Attack → Flee
-- Zone-based difficulty scaling
-- Attack telegraphs for player readability
-- [`EnemyService.lua`](src/Server/Services/EnemyService.lua) - Server-side AI management
+## Phase 37: Game Feel, Content Depth & Economy Integration ✅
 
-**Economy Loop:**
-- [`ShopService.lua`](src/Server/Services/ShopService.lua) - Shop system with 5 purchasable items
-- Gold currency management
-- Persistent transactions
-- UI feedback for purchases
+### Combat Juice (VisualsController, SFXController)
+- Color-coded burst particles by damage type
+- Configurable screen shake with intensity curves
+- Pooled floating damage numbers with crit scaling
+- Hit-stop frames for impact
+- Accessibility toggles in Constants.SETTINGS
 
-**UI Polish & Particles:**
-- Tween animations for smooth UI transitions
-- [`ParticleController.lua`](src/Client/Controllers/ParticleController.lua) - Environmental particles (fog, debris, dust)
-- Maid cleanup optimization for memory management
-- [`VisualsController.lua`](src/Client/Controllers/VisualsController.lua) - Visual effects coordination
+### Advanced Enemy AI (EnemyService)
+- 5-state behavior tree (Idle, Patrol, Aggro, Attack, Retreat)
+- Threat tables and attack telegraphing
+- Procedural difficulty scaling by distance from Hub
+- Elite variants (10% spawn, 2x health) and mini-bosses at zone thresholds
+- Spatial partitioning and distance-based update frequency
+
+### Economy & Shop (ShopService, DataService)
+- Server-validated transactions with rollback protection
+- SHOP_ITEMS catalog: stat upgrades, weapons, consumables, cosmetics
+- Purchase confirmation dialogs and insufficient funds feedback
+- Persistent inventory with OwnedWeapons/Cosmetics/Consumables
+
+### Visual Polish (UIController, ParticleController)
+- Tweened UI animations (open/close, hover, press, slide)
+- Notification system with stacking and auto-dismiss
+- Environmental particles: fog, ash, dust motes
+- Zone-intensity scaling for atmosphere
 
 ---
 

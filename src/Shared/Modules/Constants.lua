@@ -272,6 +272,32 @@ Constants.COMBAT = {
 	CRITICAL_MULTIPLIER = 2,
 }
 
+-- Accessibility Settings
+Constants.SETTINGS = {
+	ScreenShakeEnabled = true,
+	FlashEffectsEnabled = true,
+	ScreenShakeIntensity = 1.0, -- 0.0-1.0 multiplier
+	DamageNumbersEnabled = true,
+}
+
+-- Hit-stop frames configuration
+Constants.HITSTOP = {
+	NORMAL_DURATION = 0.033, -- ~2 frames at 60fps
+	CRITICAL_DURATION = 0.066, -- ~4 frames at 60fps
+	DEATH_DURATION = 0.1, -- ~6 frames for death impact
+}
+
+-- Damage type colors for particles and numbers
+Constants.DAMAGE_TYPE_COLORS = {
+	Physical = Color3.fromRGB(255, 255, 255),
+	Fire = Color3.fromRGB(255, 100, 50),
+	Ice = Color3.fromRGB(100, 200, 255),
+	Lightning = Color3.fromRGB(255, 255, 100),
+	Poison = Color3.fromRGB(100, 255, 100),
+	Dark = Color3.fromRGB(150, 50, 200),
+	Critical = Color3.fromRGB(255, 200, 50), -- Gold for crits
+}
+
 Constants.ENEMY = {
 	ZONE_DIFFICULTY_MULTIPLIERS = {
 		{MaxDistance = 100, Multiplier = 1.0},
@@ -311,11 +337,48 @@ Constants.CLANS = {
 }
 
 Constants.SHOP_ITEMS = {
-	{id = "basic_sword", name = "Basic Sword", price = 100, type = "weapon", stats = {damage = 10}},
-	{id = "iron_sword", name = "Iron Sword", price = 500, type = "weapon", stats = {damage = 25}},
-	{id = "health_boost", name = "Health Boost", price = 200, type = "consumable", effect = "maxHealth", value = 20},
-	{id = "damage_boost", name = "Damage Boost", price = 300, type = "consumable", effect = "damage", value = 5},
-	{id = "speed_potion", name = "Speed Potion", price = 150, type = "consumable", effect = "speed", value = 10},
+	-- Stat Upgrades
+	{id = "stat_health_1", name = "Health +10", cost = 100, type = "stat", stat = "MaxHealth", value = 10},
+	{id = "stat_health_2", name = "Health +25", cost = 250, type = "stat", stat = "MaxHealth", value = 25},
+	{id = "stat_health_3", name = "Health +50", cost = 500, type = "stat", stat = "MaxHealth", value = 50},
+	{id = "stat_attack_1", name = "Attack +5", cost = 150, type = "stat", stat = "Attack", value = 5},
+	{id = "stat_attack_2", name = "Attack +10", cost = 350, type = "stat", stat = "Attack", value = 10},
+	{id = "stat_speed_1", name = "Speed +5", cost = 100, type = "stat", stat = "Speed", value = 5},
+	{id = "stat_speed_2", name = "Speed +10", cost = 250, type = "stat", stat = "Speed", value = 10},
+	
+	-- Weapons - Common (50 Gold)
+	{id = "weapon_wooden_sword", name = "Wooden Sword", cost = 50, type = "weapon", rarity = "Common", stats = {damage = 5}},
+	{id = "weapon_iron_dagger", name = "Iron Dagger", cost = 50, type = "weapon", rarity = "Common", stats = {damage = 4, speed = 2}},
+	
+	-- Weapons - Rare (200 Gold)
+	{id = "weapon_steel_sword", name = "Steel Sword", cost = 200, type = "weapon", rarity = "Rare", stats = {damage = 15}},
+	{id = "weapon_fire_staff", name = "Fire Staff", cost = 200, type = "weapon", rarity = "Rare", stats = {damage = 12, magic = 5}},
+	
+	-- Weapons - Epic (500 Gold)
+	{id = "weapon_shadow_blade", name = "Shadow Blade", cost = 500, type = "weapon", rarity = "Epic", stats = {damage = 30, critChance = 10}},
+	{id = "weapon_thunder_hammer", name = "Thunder Hammer", cost = 500, type = "weapon", rarity = "Epic", stats = {damage = 35, stun = 5}},
+	
+	-- Weapons - Legendary (1000 Gold)
+	{id = "weapon_divine_sword", name = "Divine Sword", cost = 1000, type = "weapon", rarity = "Legendary", stats = {damage = 50, critChance = 15, lifesteal = 5}},
+	{id = "weapon_void_scythe", name = "Void Scythe", cost = 1000, type = "weapon", rarity = "Legendary", stats = {damage = 45, aoeRadius = 10, drain = 10}},
+	
+	-- Consumables
+	{id = "consumable_health_potion", name = "Health Potion", cost = 25, type = "consumable", effect = "heal", value = 50},
+	{id = "consumable_large_health_potion", name = "Large Health Potion", cost = 75, type = "consumable", effect = "heal", value = 150},
+	{id = "consumable_attack_boost", name = "Attack Boost", cost = 50, type = "consumable", effect = "attackBoost", value = 20, duration = 60},
+	{id = "consumable_speed_boost", name = "Speed Boost", cost = 50, type = "consumable", effect = "speedBoost", value = 10, duration = 60},
+	{id = "consumable_shield_potion", name = "Shield Potion", cost = 100, type = "consumable", effect = "shield", value = 100, duration = 30},
+	
+	-- Cosmetics
+	{id = "cosmetic_flame_aura", name = "Flame Aura", cost = 500, type = "cosmetic", cosmeticType = "aura", assetId = "flame_aura"},
+	{id = "cosmetic_ice_trail", name = "Ice Trail", cost = 300, type = "cosmetic", cosmeticType = "trail", assetId = "ice_trail"},
+	{id = "cosmetic_golden_crown", name = "Golden Crown", cost = 1000, type = "cosmetic", cosmeticType = "hat", assetId = "golden_crown"},
 }
+
+-- Build lookup for quick access
+Constants.SHOP_CATALOG = {}
+for _, item in ipairs(Constants.SHOP_ITEMS) do
+	Constants.SHOP_CATALOG[item.id] = item
+end
 
 return Constants

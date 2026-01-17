@@ -1,4 +1,4 @@
---[!strict
+--[[!strict]]
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -6,34 +6,303 @@ local Workspace = game:GetService("Workspace")
 
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Constants = require(ReplicatedStorage.Shared.Modules.Constants)
+local Maid = require(ReplicatedStorage.Shared.Modules.Maid)
 local SpiritService = require(script.Parent.SpiritService)
 local QuestService = require(script.Parent.QuestService)
 
 local EnemyService = {}
-local enemies = {}
+local maid = Maid.new()
 local ENEMY_FOLDER_NAME = "Enemies"
-local COMBAT_ZONE_CENTER = Vector3.new(0, 5, 0)
-local COMBAT_ZONE_RADIUS = 100
 
+-- State Machine States
 local STATE_IDLE = "Idle"
-local STATE_ALERT = "Alert"
-local STATE_CHASE = "Chase"
+local STATE_PATROL = "Patrol"
+local STATE_AGGRO = "Aggro"
 local STATE_ATTACK = "Attack"
-local STATE_FLEE = "Flee"
+local STATE_RETREAT = "Retreat"
 
-local SPAWN_ORIGIN = Vector3.new(0, 0, 0)
+-- Configuration
+local HUB_POSITION = Vector3.new(0, 0, 0)
+local DIFFICULTY_SCALING = {
+	HealthPerHundredStuds = 0.10,
+	DamagePerHundredStuds = 0.05,
+	SpeedPerHundredStuds = 0.03,
+}
+local ELITE_SPAWN_CHANCE = 0.10
+local MINI_BOSS_THRESHOLDS = {500, 1000, 1500}
 
-function EnemyService:GetZoneDifficulty(position: Vector3): number
-	local distance = (Vector3.new(position.X, 0, position.Z) - Vector3.new(SPAWN_ORIGIN.X, 0, SPAWN_ORIGIN.Z)).Magnitude
+-- Spatial partitioning grid
+local GRID_SIZE = 100
+local spatialGrid = {}
+local enemyData = {} -- Stores per-enemy runtime data (threat tables, etc.)
+
+-- Performance: Update frequency based on player distance
+local UPDATE_FREQUENCIES = {
+	{MaxDistance = 50, Interval = 0},       -- Every frame
+	{MaxDistance = 150, Interval = 0.1},    -- 10 times/sec
+	{MaxDistance = 300, Interval = 0.3},    -- 3 times/sec
+	{MaxDistance = math.huge, Interval = 1}, -- 1 time/sec
+}
+
+--===============================
+-- SPATIAL PARTITIONING
+--===============================
+
+local function getGridKey(position: Vector3): string
+	local gx = math.floor(position.X / GRID_SIZE)
+	local gz = math.floor(position.Z / GRID_SIZE)
+	return gx .. "," .. gz
+end
+
+local function addToGrid(enemy: Model)
+	local root = enemy:FindFirstChild("HumanoidRootPart")
+	if not root then return end
 	
-	for _, zone in ipairs(Constants.ENEMY.ZONE_DIFFICULTY_MULTIPLIERS) do
-		if distance <= zone.MaxDistance then
-			return zone.Multiplier
+	local key = getGridKey(root.Position)
+	if not spatialGrid[key] then
+		spatialGrid[key] = {}
+	end
+	spatialGrid[key][enemy] = true
+	enemy:SetAttribute("GridKey", key)
+end
+
+local function removeFromGrid(enemy: Model)
+	local key = enemy:GetAttribute("GridKey")
+	if key and spatialGrid[key] then
+		spatialGrid[key][enemy] = nil
+	end
+end
+
+local function updateGridPosition(enemy: Model)
+	local root = enemy:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+	
+	local oldKey = enemy:GetAttribute("GridKey")
+	local newKey = getGridKey(root.Position)
+	
+	if oldKey ~= newKey then
+		if oldKey and spatialGrid[oldKey] then
+			spatialGrid[oldKey][enemy] = nil
+		end
+		if not spatialGrid[newKey] then
+			spatialGrid[newKey] = {}
+		end
+		spatialGrid[newKey][enemy] = true
+		enemy:SetAttribute("GridKey", newKey)
+	end
+end
+
+--===============================
+-- DIFFICULTY SCALING
+--===============================
+
+function EnemyService:GetDistanceFromHub(position: Vector3): number
+	return (Vector3.new(position.X, 0, position.Z) - Vector3.new(HUB_POSITION.X, 0, HUB_POSITION.Z)).Magnitude
+end
+
+function EnemyService:GetDifficultyMultipliers(position: Vector3): (number, number, number)
+	local distance = self:GetDistanceFromHub(position)
+	local units = distance / 100
+	
+	local healthMult = 1 + (units * DIFFICULTY_SCALING.HealthPerHundredStuds)
+	local damageMult = 1 + (units * DIFFICULTY_SCALING.DamagePerHundredStuds)
+	local speedMult = 1 + (units * DIFFICULTY_SCALING.SpeedPerHundredStuds)
+	
+	return healthMult, damageMult, speedMult
+end
+
+function EnemyService:GetSpawnDensity(position: Vector3): number
+	local distance = self:GetDistanceFromHub(position)
+	return 1 + (distance / 500) -- Increases with distance
+end
+
+function EnemyService:ShouldSpawnMiniBoss(position: Vector3): boolean
+	local distance = self:GetDistanceFromHub(position)
+	for _, threshold in ipairs(MINI_BOSS_THRESHOLDS) do
+		if math.abs(distance - threshold) < 50 then
+			return math.random() < 0.05 -- 5% chance at thresholds
+		end
+	end
+	return false
+end
+
+--===============================
+-- THREAT TABLE MANAGEMENT
+--===============================
+
+local function initEnemyData(enemy: Model)
+	enemyData[enemy] = {
+		ThreatTable = {},
+		LastUpdate = 0,
+		Maid = Maid.new(),
+	}
+end
+
+local function cleanupEnemyData(enemy: Model)
+	if enemyData[enemy] then
+		enemyData[enemy].Maid:DoCleaning()
+		enemyData[enemy] = nil
+	end
+end
+
+function EnemyService:AddThreat(enemy: Model, player: Player, amount: number)
+	local data = enemyData[enemy]
+	if not data then return end
+	
+	data.ThreatTable[player] = (data.ThreatTable[player] or 0) + amount
+end
+
+function EnemyService:GetHighestThreatTarget(enemy: Model): Player?
+	local data = enemyData[enemy]
+	if not data then return nil end
+	
+	local highestThreat = 0
+	local highestTarget = nil
+	
+	for player, threat in pairs(data.ThreatTable) do
+		if player.Parent and player.Character and player.Character:FindFirstChild("Humanoid") then
+			local hum = player.Character.Humanoid
+			if hum.Health > 0 and threat > highestThreat then
+				highestThreat = threat
+				highestTarget = player
+			end
+		else
+			data.ThreatTable[player] = nil
 		end
 	end
 	
-	return 3.0 -- Default to highest multiplier
+	return highestTarget
 end
+
+--===============================
+-- TELEGRAPH SYSTEM
+--===============================
+
+function EnemyService:TelegraphAttack(enemy: Model, targetPosition: Vector3, duration: number, attackType: string?)
+	local root = enemy:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+	
+	enemy:SetAttribute("Telegraphing", true)
+	
+	local EnemyTelegraph = Remotes.GetEvent("EnemyTelegraph")
+	if EnemyTelegraph then
+		EnemyTelegraph:FireAllClients({
+			enemyId = enemy:GetFullName(),
+			position = targetPosition,
+			attackType = attackType or "melee",
+			duration = duration,
+			radius = enemy:GetAttribute("IsElite") and 8 or 5,
+		})
+	end
+	
+	-- Create ground indicator
+	local indicator = Instance.new("Part")
+	indicator.Name = "TelegraphIndicator"
+	indicator.Anchored = true
+	indicator.CanCollide = false
+	indicator.Size = Vector3.new(enemy:GetAttribute("IsElite") and 16 or 10, 0.2, enemy:GetAttribute("IsElite") and 16 or 10)
+	indicator.Position = Vector3.new(targetPosition.X, targetPosition.Y - 1, targetPosition.Z)
+	indicator.Color = Color3.fromRGB(255, 50, 50)
+	indicator.Material = Enum.Material.Neon
+	indicator.Transparency = 0.5
+	indicator.Shape = Enum.PartType.Cylinder
+	indicator.CFrame = CFrame.new(indicator.Position) * CFrame.Angles(0, 0, math.rad(90))
+	indicator.Parent = Workspace
+	
+	task.delay(duration, function()
+		if indicator and indicator.Parent then
+			indicator:Destroy()
+		end
+		if enemy and enemy.Parent then
+			enemy:SetAttribute("Telegraphing", false)
+		end
+	end)
+	
+	return indicator
+end
+
+--===============================
+-- ELITE & MINI-BOSS CREATION
+--===============================
+
+function EnemyService:MakeElite(enemy: Model, humanoid: Humanoid)
+	enemy:SetAttribute("IsElite", true)
+	
+	-- 2x health, 1.5x damage
+	humanoid.MaxHealth = humanoid.MaxHealth * 2
+	humanoid.Health = humanoid.MaxHealth
+	enemy:SetAttribute("Damage", math.floor(enemy:GetAttribute("Damage") * 1.5))
+	enemy:SetAttribute("ExpReward", math.floor(enemy:GetAttribute("ExpReward") * 2.5))
+	
+	-- Glowing effect
+	local root = enemy:FindFirstChild("HumanoidRootPart")
+	if root then
+		local light = Instance.new("PointLight")
+		light.Color = Color3.fromRGB(255, 215, 0)
+		light.Brightness = 2
+		light.Range = 12
+		light.Parent = root
+		
+		-- Scale up
+		root.Size = root.Size * 1.3
+	end
+end
+
+function EnemyService:CreateMiniBoss(name: string, position: Vector3)
+	local healthMult, damageMult, speedMult = self:GetDifficultyMultipliers(position)
+	
+	local model = Instance.new("Model")
+	model.Name = name .. " (Mini-Boss)"
+	model:SetAttribute("IsMiniBoss", true)
+	model:SetAttribute("ExpReward", math.floor(500 * healthMult))
+	model:SetAttribute("State", STATE_IDLE)
+	model:SetAttribute("HomePosition", position)
+	model:SetAttribute("PatrolTarget", Vector3.zero)
+	model:SetAttribute("LastAttack", 0)
+	model:SetAttribute("LastMove", 0)
+	model:SetAttribute("LastPatrolChange", 0)
+	model:SetAttribute("Damage", math.floor(40 * damageMult))
+	model:SetAttribute("AttackPattern", 1) -- Tracks multi-hit patterns
+	model:SetAttribute("Telegraphing", false)
+	model:SetAttribute("AggroRange", 60)
+	
+	local humanoid = Instance.new("Humanoid")
+	humanoid.MaxHealth = math.floor(2000 * healthMult)
+	humanoid.Health = humanoid.MaxHealth
+	humanoid.WalkSpeed = math.floor(14 * speedMult)
+	humanoid.Parent = model
+	
+	local rootPart = Instance.new("Part")
+	rootPart.Name = "HumanoidRootPart"
+	rootPart.Size = Vector3.new(8, 8, 8)
+	rootPart.Position = position
+	rootPart.Color = Color3.fromRGB(180, 0, 255)
+	rootPart.Material = Enum.Material.Neon
+	rootPart.Anchored = false
+	rootPart.CanCollide = true
+	rootPart.Parent = model
+	
+	-- Mini-boss glow
+	local light = Instance.new("PointLight")
+	light.Color = Color3.fromRGB(180, 0, 255)
+	light.Brightness = 3
+	light.Range = 20
+	light.Parent = rootPart
+	
+	model.PrimaryPart = rootPart
+	model.Parent = self.EnemyFolder
+	
+	initEnemyData(model)
+	addToGrid(model)
+	self:CreateHealthBar(model)
+	
+	print("[EnemyService] Spawned Mini-Boss: " .. model.Name)
+	return model
+end
+
+--===============================
+-- ENEMY SPAWNING
+--===============================
 
 function EnemyService:Init()
 	print("[EnemyService] Initializing...")
@@ -50,24 +319,26 @@ function EnemyService:Start()
 	-- Spawn loop
 	task.spawn(function()
 		while true do
-			-- Regular Enemies
 			local enemyCount = 0
 			for _, child in ipairs(self.EnemyFolder:GetChildren()) do
-				if not child:GetAttribute("IsBoss") then
+				if not child:GetAttribute("IsBoss") and not child:GetAttribute("IsMiniBoss") then
 					enemyCount = enemyCount + 1
 				end
 			end
 
-			if enemyCount < 10 then
-				-- Spawn in Glitch Wastes (The Wilds: Z 150-350)
+			if enemyCount < 15 then
 				local zone = Constants.ZONES["Glitch Wastes"]
 				if zone then
-					-- Updated Spawn Coordinates for Platform Extension
 					local x = math.random(-50, 50)
-					local z = math.random(150, 350)
+					local z = math.random(150, 600) -- Extended range
 					local spawnPos = Vector3.new(x, 5, z)
 					
-					self:SpawnEnemy("Glitch Slime", spawnPos)
+					-- Check for mini-boss spawn
+					if self:ShouldSpawnMiniBoss(spawnPos) then
+						self:CreateMiniBoss("Glitch Sentinel", spawnPos)
+					else
+						self:SpawnEnemy("Glitch Slime", spawnPos)
+					end
 				end
 			end
 			
@@ -81,36 +352,35 @@ function EnemyService:Start()
 			end
 			
 			if not bossExists then
-				local zone = Constants.ZONES["Glitch Wastes"]
-				if zone then
-					-- Spawn boss at specific position (The Throne: Z=450)
-					self:SpawnBoss("Glitch King", Vector3.new(0, 5, 450))
-				end
+				self:SpawnBoss("Glitch King", Vector3.new(0, 5, 450))
 			end
 			
 			task.wait(5)
 		end
 	end)
 	
-	-- AI Loop
-	RunService.Heartbeat:Connect(function()
-		self:UpdateEnemies()
-	end)
+	-- AI Loop with performance optimization
+	local lastUpdateTime = {}
+	maid:GiveTask(RunService.Heartbeat:Connect(function()
+		self:UpdateEnemies(lastUpdateTime)
+	end))
 end
 
 function EnemyService:SpawnBoss(name: string, position: Vector3)
-	local bossDef = Constants.BOSSES.GlitchKing -- Simplified lookup
+	local bossDef = Constants.BOSSES.GlitchKing
 	if not bossDef then return end
 
 	local model = Instance.new("Model")
 	model.Name = name
 	model:SetAttribute("IsBoss", true)
 	model:SetAttribute("ExpReward", bossDef.Rewards.Exp)
-	model:SetAttribute("Passive", true) -- Starts passive
+	model:SetAttribute("Passive", true)
 	model:SetAttribute("AggroRange", 100)
 	model:SetAttribute("State", STATE_IDLE)
 	model:SetAttribute("LastAttack", 0)
 	model:SetAttribute("LastMove", 0)
+	model:SetAttribute("Damage", bossDef.Damage)
+	model:SetAttribute("Telegraphing", false)
 	
 	local humanoid = Instance.new("Humanoid")
 	humanoid.MaxHealth = bossDef.Health
@@ -130,7 +400,9 @@ function EnemyService:SpawnBoss(name: string, position: Vector3)
 	model.PrimaryPart = rootPart
 	model.Parent = self.EnemyFolder
 	
-	-- Notify clients
+	initEnemyData(model)
+	addToGrid(model)
+	
 	local BossSpawned = Remotes.GetEvent("BossSpawned")
 	if BossSpawned then
 		BossSpawned:FireAllClients({Name = name, MaxHealth = bossDef.Health})
@@ -140,99 +412,72 @@ function EnemyService:SpawnBoss(name: string, position: Vector3)
 end
 
 function EnemyService:SpawnEnemy(name: string, position: Vector3)
-	local difficultyMultiplier = self:GetZoneDifficulty(position)
+	local healthMult, damageMult, speedMult = self:GetDifficultyMultipliers(position)
 	local baseHealth = 100
 	local baseDamage = 15
+	local baseSpeed = 12
 	
 	local model = Instance.new("Model")
 	model.Name = name
-	model:SetAttribute("ExpReward", math.floor(25 * difficultyMultiplier))
+	model:SetAttribute("ExpReward", math.floor(25 * healthMult))
 	model:SetAttribute("State", STATE_IDLE)
 	model:SetAttribute("HomePosition", position)
 	model:SetAttribute("PatrolTarget", Vector3.zero)
 	model:SetAttribute("LastAttack", 0)
 	model:SetAttribute("LastMove", 0)
 	model:SetAttribute("LastPatrolChange", 0)
-	model:SetAttribute("Damage", math.floor(baseDamage * difficultyMultiplier))
-	model:SetAttribute("AlertStart", 0)
+	model:SetAttribute("Damage", math.floor(baseDamage * damageMult))
 	model:SetAttribute("Telegraphing", false)
+	model:SetAttribute("AggroRange", 40)
 	
 	local humanoid = Instance.new("Humanoid")
-	humanoid.MaxHealth = math.floor(baseHealth * difficultyMultiplier)
+	humanoid.MaxHealth = math.floor(baseHealth * healthMult)
 	humanoid.Health = humanoid.MaxHealth
+	humanoid.WalkSpeed = math.floor(baseSpeed * speedMult)
 	humanoid.Parent = model
 	
 	local rootPart = Instance.new("Part")
 	rootPart.Name = "HumanoidRootPart"
 	rootPart.Size = Vector3.new(4, 4, 4)
 	rootPart.Position = position
-	rootPart.Color = Color3.fromRGB(100, 0, 255) -- Glitchy purple
+	rootPart.Color = Color3.fromRGB(100, 0, 255)
 	rootPart.Material = Enum.Material.Neon
 	rootPart.Anchored = false
 	rootPart.CanCollide = true
 	rootPart.Parent = model
 	
-	-- Check for asset
-	local assetId = Constants.ASSETS.ENEMIES.GlitchSlime
-	if assetId and assetId ~= "rbxassetid://0" and assetId ~= "" then
-		-- Real asset logic would go here
-	else
-		-- Procedural Slime Visuals
-		-- Make it look a bit more like a slime (rounded, maybe slightly transparent)
-		rootPart.Shape = Enum.PartType.Ball
-		rootPart.Transparency = 0.3
-		
-		-- Add a "core"
-		local core = Instance.new("Part")
-		core.Name = "Core"
-		core.Size = Vector3.new(2, 2, 2)
-		core.Shape = Enum.PartType.Ball
-		core.Color = Color3.fromRGB(50, 0, 150)
-		core.Material = Enum.Material.Neon
-		core.CanCollide = false
-		core.Massless = true
-		core.Parent = model
-		
-		local weld = Instance.new("WeldConstraint")
-		weld.Part0 = rootPart
-		weld.Part1 = core
-		weld.Parent = core
-		
-		-- Align core to root
-		core.CFrame = rootPart.CFrame
-		
-		-- Add eyes
-		local leftEye = Instance.new("Part")
-		leftEye.Name = "LeftEye"
-		leftEye.Size = Vector3.new(0.5, 0.5, 0.2)
-		leftEye.Color = Color3.new(1, 1, 1)
-		leftEye.Material = Enum.Material.Neon
-		leftEye.CanCollide = false
-		leftEye.Parent = model
-		
-		local rightEye = leftEye:Clone()
-		rightEye.Name = "RightEye"
-		rightEye.Parent = model
-		
-		local weldL = Instance.new("Weld")
-		weldL.Part0 = rootPart
-		weldL.Part1 = leftEye
-		weldL.C0 = CFrame.new(-1, 0.5, -1.8)
-		weldL.Parent = leftEye
-		
-		local weldR = Instance.new("Weld")
-		weldR.Part0 = rootPart
-		weldR.Part1 = rightEye
-		weldR.C0 = CFrame.new(1, 0.5, -1.8)
-		weldR.Parent = rightEye
-	end
+	-- Procedural visuals
+	rootPart.Shape = Enum.PartType.Ball
+	rootPart.Transparency = 0.3
+	
+	local core = Instance.new("Part")
+	core.Name = "Core"
+	core.Size = Vector3.new(2, 2, 2)
+	core.Shape = Enum.PartType.Ball
+	core.Color = Color3.fromRGB(50, 0, 150)
+	core.Material = Enum.Material.Neon
+	core.CanCollide = false
+	core.Massless = true
+	core.Parent = model
+	
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = rootPart
+	weld.Part1 = core
+	weld.Parent = core
+	core.CFrame = rootPart.CFrame
 	
 	model.PrimaryPart = rootPart
 	model.Parent = self.EnemyFolder
 	
-	self:CreateHealthBar(model)
+	initEnemyData(model)
+	addToGrid(model)
 	
-	-- print("[EnemyService] Spawned " .. name .. " with difficulty " .. difficultyMultiplier)
+	-- Elite chance
+	if math.random() < ELITE_SPAWN_CHANCE then
+		self:MakeElite(model, humanoid)
+	end
+	
+	self:CreateHealthBar(model)
 end
 
 function EnemyService:CreateHealthBar(model)
@@ -256,169 +501,100 @@ function EnemyService:CreateHealthBar(model)
 	
 	local fill = Instance.new("Frame")
 	fill.Size = UDim2.new(1, 0, 1, 0)
-	fill.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+	fill.BackgroundColor3 = model:GetAttribute("IsElite") and Color3.fromRGB(255, 215, 0) or Color3.fromRGB(255, 50, 50)
 	fill.BorderSizePixel = 0
 	fill.Parent = frame
 	
-	humanoid.HealthChanged:Connect(function(health)
-		local percent = health / humanoid.MaxHealth
-		fill:TweenSize(UDim2.new(percent, 0, 1, 0), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.1, true)
-	end)
+	-- Elite/Mini-boss label
+	if model:GetAttribute("IsElite") or model:GetAttribute("IsMiniBoss") then
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.new(1, 0, 1, 0)
+		label.Position = UDim2.new(0, 0, -1.5, 0)
+		label.BackgroundTransparency = 1
+		label.TextColor3 = Color3.fromRGB(255, 215, 0)
+		label.TextScaled = true
+		label.Text = model:GetAttribute("IsMiniBoss") and "★ MINI-BOSS ★" or "★ ELITE ★"
+		label.Font = Enum.Font.GothamBold
+		label.Parent = bg
+	end
+	
+	local data = enemyData[model]
+	if data then
+		data.Maid:GiveTask(humanoid.HealthChanged:Connect(function(health)
+			local percent = health / humanoid.MaxHealth
+			fill:TweenSize(UDim2.new(percent, 0, 1, 0), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.1, true)
+		end))
+	end
 end
 
-function EnemyService:UpdateEnemies()
+--===============================
+-- AI UPDATE LOOP
+--===============================
+
+function EnemyService:GetUpdateInterval(enemy: Model): number
+	local root = enemy:FindFirstChild("HumanoidRootPart")
+	if not root then return 1 end
+	
+	local nearestDistance = math.huge
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player.Character and player.Character.PrimaryPart then
+			local dist = (player.Character.PrimaryPart.Position - root.Position).Magnitude
+			if dist < nearestDistance then
+				nearestDistance = dist
+			end
+		end
+	end
+	
+	for _, config in ipairs(UPDATE_FREQUENCIES) do
+		if nearestDistance <= config.MaxDistance then
+			return config.Interval
+		end
+	end
+	
+	return 1
+end
+
+function EnemyService:UpdateEnemies(lastUpdateTime)
 	local now = os.clock()
 	
 	for _, enemy in ipairs(self.EnemyFolder:GetChildren()) do
 		if not enemy:IsA("Model") then continue end
 		
+		-- Performance: Check update interval
+		local interval = self:GetUpdateInterval(enemy)
+		local lastTime = lastUpdateTime[enemy] or 0
+		if now - lastTime < interval then continue end
+		lastUpdateTime[enemy] = now
+		
 		local humanoid = enemy:FindFirstChild("Humanoid")
 		local rootPart = enemy:FindFirstChild("HumanoidRootPart")
 		
 		if humanoid and rootPart and humanoid.Health > 0 then
-			-- Safety check: Ensure enemy isn't falling into void or in Hub
+			-- Update grid position
+			updateGridPosition(enemy)
+			
+			-- Safety check
 			if rootPart.Position.Y < -100 or rootPart.Position.Z < 100 then
+				cleanupEnemyData(enemy)
+				removeFromGrid(enemy)
 				enemy:Destroy()
 				continue
 			end
 			
-			local target = self:FindNearestPlayer(rootPart.Position)
-			local distanceToTarget = math.huge
-			local targetPos = nil
-			
-			if target and target.Character and target.Character.PrimaryPart then
-				targetPos = target.Character.PrimaryPart.Position
-				distanceToTarget = (targetPos - rootPart.Position).Magnitude
-			end
-
-			-- Boss Logic (Simplified State Machine for Boss)
+			-- Boss logic
 			if enemy:GetAttribute("IsBoss") then
-				self:UpdateBoss(enemy, humanoid, rootPart, target, distanceToTarget, now)
+				self:UpdateBoss(enemy, humanoid, rootPart, now)
 				continue
 			end
 			
-			-- Regular Enemy State Machine
-			local state = enemy:GetAttribute("State") or STATE_IDLE
-			local homePos = enemy:GetAttribute("HomePosition") or rootPart.Position
-			local healthPercent = humanoid.Health / humanoid.MaxHealth
-			
-			-- Check for Flee state (low health)
-			if healthPercent < Constants.ENEMY.FLEE_HEALTH_THRESHOLD then
-				state = STATE_FLEE
-			-- State Transitions
-			elseif state == STATE_IDLE then
-				if target and distanceToTarget < 40 then
-					state = STATE_ALERT
-					enemy:SetAttribute("AlertStart", now)
-				end
-			elseif state == STATE_ALERT then
-				local alertStart = enemy:GetAttribute("AlertStart") or now
-				if now - alertStart > 0.5 then -- 0.5s alert duration
-					state = STATE_CHASE
-				elseif not target or distanceToTarget > 50 then
-					state = STATE_IDLE
-				end
-			elseif state == STATE_CHASE then
-				if not target or distanceToTarget > 60 then
-					state = STATE_IDLE
-				elseif distanceToTarget < 8 then
-					state = STATE_ATTACK
-				end
-			elseif state == STATE_ATTACK then
-				if not target or distanceToTarget > 10 then
-					state = STATE_CHASE
-				end
-			elseif state == STATE_FLEE then
-				if healthPercent >= Constants.ENEMY.FLEE_HEALTH_THRESHOLD then
-					state = STATE_IDLE
-				end
+			-- Mini-boss logic
+			if enemy:GetAttribute("IsMiniBoss") then
+				self:UpdateMiniBoss(enemy, humanoid, rootPart, now)
+				continue
 			end
 			
-			enemy:SetAttribute("State", state)
-			
-			-- State Behaviors
-			if state == STATE_IDLE then
-				-- Improved Patrol Logic with random wandering
-				local patrolTarget = enemy:GetAttribute("PatrolTarget")
-				local lastPatrolChange = enemy:GetAttribute("LastPatrolChange") or 0
-				
-				-- Change patrol target if reached, invalid, or timeout (random timing)
-				if not patrolTarget or patrolTarget == Vector3.zero 
-					or (rootPart.Position - patrolTarget).Magnitude < 5
-					or (now - lastPatrolChange > math.random(5, 10)) then
-					
-					-- Pick new random point near home within spawn radius
-					local angle = math.random() * math.pi * 2
-					local distance = math.random(10, 25)
-					local rx = math.cos(angle) * distance
-					local rz = math.sin(angle) * distance
-					patrolTarget = homePos + Vector3.new(rx, 0, rz)
-					enemy:SetAttribute("PatrolTarget", patrolTarget)
-					enemy:SetAttribute("LastPatrolChange", now)
-				end
-				
-				if now - (enemy:GetAttribute("LastMove") or 0) > 0.5 then
-					humanoid:MoveTo(patrolTarget)
-					enemy:SetAttribute("LastMove", now)
-				end
-			
-			elseif state == STATE_ALERT then
-				-- Stop and face player (visual telegraph before engaging)
-				humanoid:MoveTo(rootPart.Position)
-			
-			elseif state == STATE_CHASE then
-				if targetPos and now - (enemy:GetAttribute("LastMove") or 0) > 0.2 then
-					humanoid:MoveTo(targetPos)
-					enemy:SetAttribute("LastMove", now)
-				end
-			
-			elseif state == STATE_ATTACK then
-				humanoid:MoveTo(rootPart.Position) -- Stop moving
-				
-				local lastAttack = enemy:GetAttribute("LastAttack") or 0
-				local isTelegraphing = enemy:GetAttribute("Telegraphing") or false
-				
-				if not isTelegraphing and now - lastAttack > 2 then -- 2s Attack Cooldown
-					enemy:SetAttribute("Telegraphing", true)
-					
-					-- Fire telegraph remote
-					local EnemyTelegraph = Remotes.GetEvent("EnemyTelegraph")
-					if EnemyTelegraph then
-						EnemyTelegraph:FireAllClients({
-							enemyId = enemy:GetFullName(),
-							attackType = "melee",
-							duration = Constants.ENEMY.TELEGRAPH_DURATION
-						})
-					end
-					
-					-- Telegraph delay then damage
-					task.delay(Constants.ENEMY.TELEGRAPH_DURATION, function()
-						if enemy.Parent and humanoid.Health > 0 and target and target.Character then
-							local tHum = target.Character:FindFirstChild("Humanoid")
-							local tRoot = target.Character:FindFirstChild("HumanoidRootPart")
-							if tHum and tRoot and (tRoot.Position - rootPart.Position).Magnitude < 12 then
-								local damage = enemy:GetAttribute("Damage") or 15
-								tHum:TakeDamage(damage)
-							end
-						end
-						enemy:SetAttribute("Telegraphing", false)
-					end)
-					enemy:SetAttribute("LastAttack", now)
-				end
-			
-			elseif state == STATE_FLEE then
-				-- Run away from target
-				if target and targetPos and now - (enemy:GetAttribute("LastMove") or 0) > 0.2 then
-					local fleeDirection = (rootPart.Position - targetPos).Unit
-					local fleeTarget = rootPart.Position + fleeDirection * 30
-					humanoid:MoveTo(fleeTarget)
-					enemy:SetAttribute("LastMove", now)
-				elseif now - (enemy:GetAttribute("LastMove") or 0) > 0.5 then
-					-- No target, wander towards home
-					humanoid:MoveTo(homePos)
-					enemy:SetAttribute("LastMove", now)
-				end
-			end
+			-- Regular enemy state machine
+			self:UpdateRegularEnemy(enemy, humanoid, rootPart, now)
 			
 		elseif humanoid and humanoid.Health <= 0 then
 			if not enemy:GetAttribute("Dead") then
@@ -426,51 +602,291 @@ function EnemyService:UpdateEnemies()
 				self:HandleEnemyDeath(enemy)
 			end
 		else
-			-- Cleanup invalid enemies
+			cleanupEnemyData(enemy)
+			removeFromGrid(enemy)
 			enemy:Destroy()
 		end
 	end
 end
 
-function EnemyService:UpdateBoss(enemy, humanoid, rootPart, target, distance, now)
+function EnemyService:UpdateRegularEnemy(enemy: Model, humanoid: Humanoid, rootPart: BasePart, now: number)
+	-- Get target from threat table or nearest player
+	local target = self:GetHighestThreatTarget(enemy) or self:FindNearestPlayer(rootPart.Position)
+	local distanceToTarget = math.huge
+	local targetPos = nil
+	
+	if target and target.Character and target.Character.PrimaryPart then
+		targetPos = target.Character.PrimaryPart.Position
+		distanceToTarget = (targetPos - rootPart.Position).Magnitude
+	end
+	
+	local state = enemy:GetAttribute("State") or STATE_IDLE
+	local homePos = enemy:GetAttribute("HomePosition") or rootPart.Position
+	local healthPercent = humanoid.Health / humanoid.MaxHealth
+	local aggroRange = enemy:GetAttribute("AggroRange") or 40
+	
+	-- State Transitions
+	if healthPercent < 0.2 then
+		state = STATE_RETREAT
+	elseif state == STATE_IDLE then
+		if target and distanceToTarget < aggroRange then
+			state = STATE_AGGRO
+			self:AddThreat(enemy, target, 1) -- Initial aggro
+		elseif math.random() < 0.01 then -- Small chance to patrol
+			state = STATE_PATROL
+		end
+	elseif state == STATE_PATROL then
+		if target and distanceToTarget < aggroRange then
+			state = STATE_AGGRO
+			self:AddThreat(enemy, target, 1)
+		end
+	elseif state == STATE_AGGRO then
+		if not target or distanceToTarget > aggroRange * 1.5 then
+			state = STATE_IDLE
+		elseif distanceToTarget < 8 then
+			state = STATE_ATTACK
+		end
+	elseif state == STATE_ATTACK then
+		if not target or distanceToTarget > 10 then
+			state = STATE_AGGRO
+		end
+	elseif state == STATE_RETREAT then
+		if healthPercent >= 0.3 then
+			state = STATE_IDLE
+		end
+	end
+	
+	enemy:SetAttribute("State", state)
+	
+	-- State Behaviors
+	if state == STATE_IDLE then
+		self:DoIdleBehavior(enemy, humanoid, rootPart, homePos, now)
+	elseif state == STATE_PATROL then
+		self:DoPatrolBehavior(enemy, humanoid, rootPart, homePos, now)
+	elseif state == STATE_AGGRO then
+		self:DoAggroBehavior(enemy, humanoid, rootPart, targetPos, now)
+	elseif state == STATE_ATTACK then
+		self:DoAttackBehavior(enemy, humanoid, rootPart, target, targetPos, now)
+	elseif state == STATE_RETREAT then
+		self:DoRetreatBehavior(enemy, humanoid, rootPart, targetPos, homePos, now)
+	end
+end
+
+function EnemyService:DoIdleBehavior(enemy, humanoid, rootPart, homePos, now)
+	-- Small random wandering
+	if now - (enemy:GetAttribute("LastMove") or 0) > 2 then
+		local angle = math.random() * math.pi * 2
+		local dist = math.random(3, 8)
+		local wanderPos = homePos + Vector3.new(math.cos(angle) * dist, 0, math.sin(angle) * dist)
+		humanoid:MoveTo(wanderPos)
+		enemy:SetAttribute("LastMove", now)
+	end
+end
+
+function EnemyService:DoPatrolBehavior(enemy, humanoid, rootPart, homePos, now)
+	local patrolTarget = enemy:GetAttribute("PatrolTarget")
+	local lastPatrolChange = enemy:GetAttribute("LastPatrolChange") or 0
+	
+	if not patrolTarget or patrolTarget == Vector3.zero 
+		or (rootPart.Position - patrolTarget).Magnitude < 5
+		or (now - lastPatrolChange > math.random(8, 15)) then
+		
+		local angle = math.random() * math.pi * 2
+		local distance = math.random(15, 30)
+		patrolTarget = homePos + Vector3.new(math.cos(angle) * distance, 0, math.sin(angle) * distance)
+		enemy:SetAttribute("PatrolTarget", patrolTarget)
+		enemy:SetAttribute("LastPatrolChange", now)
+	end
+	
+	if now - (enemy:GetAttribute("LastMove") or 0) > 0.5 then
+		humanoid:MoveTo(patrolTarget)
+		enemy:SetAttribute("LastMove", now)
+	end
+end
+
+function EnemyService:DoAggroBehavior(enemy, humanoid, rootPart, targetPos, now)
+	if targetPos and now - (enemy:GetAttribute("LastMove") or 0) > 0.2 then
+		humanoid:MoveTo(targetPos)
+		enemy:SetAttribute("LastMove", now)
+	end
+end
+
+function EnemyService:DoAttackBehavior(enemy, humanoid, rootPart, target, targetPos, now)
+	humanoid:MoveTo(rootPart.Position) -- Stop
+	
+	local lastAttack = enemy:GetAttribute("LastAttack") or 0
+	local isTelegraphing = enemy:GetAttribute("Telegraphing") or false
+	local attackCooldown = enemy:GetAttribute("IsElite") and 1.5 or 2
+	
+	if not isTelegraphing and now - lastAttack > attackCooldown and targetPos then
+		local telegraphDuration = Constants.ENEMY.TELEGRAPH_DURATION or 0.5
+		self:TelegraphAttack(enemy, targetPos, telegraphDuration, "melee")
+		
+		task.delay(telegraphDuration, function()
+			if enemy.Parent and humanoid.Health > 0 and target and target.Character then
+				local tHum = target.Character:FindFirstChild("Humanoid")
+				local tRoot = target.Character:FindFirstChild("HumanoidRootPart")
+				if tHum and tRoot and (tRoot.Position - rootPart.Position).Magnitude < 12 then
+					local damage = enemy:GetAttribute("Damage") or 15
+					tHum:TakeDamage(damage)
+					self:AddThreat(enemy, target, damage)
+				end
+			end
+		end)
+		enemy:SetAttribute("LastAttack", now)
+	end
+end
+
+function EnemyService:DoRetreatBehavior(enemy, humanoid, rootPart, targetPos, homePos, now)
+	if targetPos and now - (enemy:GetAttribute("LastMove") or 0) > 0.2 then
+		local fleeDirection = (rootPart.Position - targetPos).Unit
+		local fleeTarget = rootPart.Position + fleeDirection * 30
+		humanoid:MoveTo(fleeTarget)
+		enemy:SetAttribute("LastMove", now)
+	elseif now - (enemy:GetAttribute("LastMove") or 0) > 0.5 then
+		humanoid:MoveTo(homePos)
+		enemy:SetAttribute("LastMove", now)
+	end
+end
+
+--===============================
+-- MINI-BOSS AI
+--===============================
+
+function EnemyService:UpdateMiniBoss(enemy: Model, humanoid: Humanoid, rootPart: BasePart, now: number)
+	local target = self:GetHighestThreatTarget(enemy) or self:FindNearestPlayer(rootPart.Position)
+	local distanceToTarget = math.huge
+	local targetPos = nil
+	
+	if target and target.Character and target.Character.PrimaryPart then
+		targetPos = target.Character.PrimaryPart.Position
+		distanceToTarget = (targetPos - rootPart.Position).Magnitude
+	end
+	
+	local aggroRange = enemy:GetAttribute("AggroRange") or 60
+	
+	if target and distanceToTarget < aggroRange then
+		-- Chase
+		if distanceToTarget > 10 then
+			if now - (enemy:GetAttribute("LastMove") or 0) > 0.15 then
+				humanoid:MoveTo(targetPos)
+				enemy:SetAttribute("LastMove", now)
+			end
+		else
+			-- Attack with patterns
+			humanoid:MoveTo(rootPart.Position)
+			local lastAttack = enemy:GetAttribute("LastAttack") or 0
+			local isTelegraphing = enemy:GetAttribute("Telegraphing") or false
+			
+			if not isTelegraphing and now - lastAttack > 2.5 and targetPos then
+				local pattern = enemy:GetAttribute("AttackPattern") or 1
+				
+				if pattern == 1 then
+					-- Multi-hit: 3 quick attacks
+					self:TelegraphAttack(enemy, targetPos, 0.3, "multi")
+					for i = 0, 2 do
+						task.delay(0.3 + i * 0.4, function()
+							if enemy.Parent and humanoid.Health > 0 and target and target.Character then
+								local tHum = target.Character:FindFirstChild("Humanoid")
+								local tRoot = target.Character:FindFirstChild("HumanoidRootPart")
+								if tHum and tRoot and (tRoot.Position - rootPart.Position).Magnitude < 15 then
+									tHum:TakeDamage(enemy:GetAttribute("Damage") * 0.5)
+									self:AddThreat(enemy, target, 10)
+								end
+							end
+						end)
+					end
+					enemy:SetAttribute("AttackPattern", 2)
+				else
+					-- AoE slam
+					self:TelegraphAttack(enemy, rootPart.Position, 0.8, "aoe")
+					task.delay(0.8, function()
+						if enemy.Parent and humanoid.Health > 0 then
+							for _, player in ipairs(Players:GetPlayers()) do
+								if player.Character and player.Character.PrimaryPart then
+									local pRoot = player.Character.PrimaryPart
+									if (pRoot.Position - rootPart.Position).Magnitude < 20 then
+										local pHum = player.Character:FindFirstChild("Humanoid")
+										if pHum then
+											pHum:TakeDamage(enemy:GetAttribute("Damage") * 1.5)
+											self:AddThreat(enemy, player, 20)
+										end
+									end
+								end
+							end
+						end
+					end)
+					enemy:SetAttribute("AttackPattern", 1)
+				end
+				enemy:SetAttribute("LastAttack", now)
+			end
+		end
+	else
+		-- Idle patrol
+		self:DoPatrolBehavior(enemy, humanoid, rootPart, enemy:GetAttribute("HomePosition") or rootPart.Position, now)
+	end
+end
+
+--===============================
+-- BOSS AI
+--===============================
+
+function EnemyService:UpdateBoss(enemy, humanoid, rootPart, now)
 	local isPassive = enemy:GetAttribute("Passive")
 	
-	-- Wake up if damaged or player is very close
+	local target = self:GetHighestThreatTarget(enemy) or self:FindNearestPlayer(rootPart.Position)
+	local distance = math.huge
+	
+	if target and target.Character and target.Character.PrimaryPart then
+		distance = (target.Character.PrimaryPart.Position - rootPart.Position).Magnitude
+	end
+	
 	if isPassive then
 		if humanoid.Health < humanoid.MaxHealth or distance < 30 then
 			enemy:SetAttribute("Passive", false)
 		end
-		return -- Don't move or attack while passive
+		return
 	end
 	
-	-- Boss Movement & Attack
 	local aggroRange = enemy:GetAttribute("AggroRange") or 100
 	if distance < aggroRange and target then
 		local targetPos = target.Character.PrimaryPart.Position
-		local lastMove = enemy:GetAttribute("LastMove") or 0
-		if now - lastMove > 0.1 then
+		
+		if now - (enemy:GetAttribute("LastMove") or 0) > 0.1 then
 			humanoid:MoveTo(targetPos)
 			enemy:SetAttribute("LastMove", now)
 		end
 		
 		if distance < 15 then
 			local lastAttack = enemy:GetAttribute("LastAttack") or 0
-			if now - lastAttack > 2 then
-				local targetHumanoid = target.Character:FindFirstChild("Humanoid")
-				if targetHumanoid then
-					targetHumanoid:TakeDamage(50) -- Boss damage
-					enemy:SetAttribute("LastAttack", now)
-				end
+			local isTelegraphing = enemy:GetAttribute("Telegraphing") or false
+			
+			if not isTelegraphing and now - lastAttack > 2 then
+				self:TelegraphAttack(enemy, targetPos, 0.6, "boss_slam")
+				
+				task.delay(0.6, function()
+					if enemy.Parent and humanoid.Health > 0 and target and target.Character then
+						local tHum = target.Character:FindFirstChild("Humanoid")
+						if tHum then
+							tHum:TakeDamage(enemy:GetAttribute("Damage") or 50)
+							self:AddThreat(enemy, target, 50)
+						end
+					end
+				end)
+				enemy:SetAttribute("LastAttack", now)
 			end
 		end
 	end
 	
-	-- Update Boss Bar
 	local BossUpdate = Remotes.GetEvent("BossUpdate")
 	if BossUpdate then
 		BossUpdate:FireAllClients(humanoid.Health, humanoid.MaxHealth)
 	end
 end
+
+--===============================
+-- UTILITY
+--===============================
 
 function EnemyService:FindNearestPlayer(position: Vector3): Player?
 	local nearestPlayer = nil
@@ -495,11 +911,12 @@ end
 function EnemyService:HandleEnemyDeath(enemy: Model)
 	local rootPart = enemy:FindFirstChild("HumanoidRootPart")
 	if not rootPart then 
+		cleanupEnemyData(enemy)
+		removeFromGrid(enemy)
 		enemy:Destroy()
 		return 
 	end
 	
-	-- Boss Death Event
 	if enemy:GetAttribute("IsBoss") then
 		local BossDefeated = Remotes.GetEvent("BossDefeated")
 		if BossDefeated then
@@ -507,19 +924,22 @@ function EnemyService:HandleEnemyDeath(enemy: Model)
 		end
 	end
 	
-	-- Find killer (nearest player for now)
-	local killer = self:FindNearestPlayer(rootPart.Position)
+	-- Find killer from threat table
+	local killer = self:GetHighestThreatTarget(enemy) or self:FindNearestPlayer(rootPart.Position)
 	if killer then
 		local exp = enemy:GetAttribute("ExpReward") or 10
+		
+		-- Elite bonus rewards
+		if enemy:GetAttribute("IsElite") then
+			exp = math.floor(exp * 1.5)
+		end
+		
 		SpiritService:AddExp(killer, exp)
-		
-		-- Notify QuestService
 		QuestService:OnEnemyKilled(killer, enemy.Name)
-		
-		-- print(`[EnemyService] {killer.Name} killed {enemy.Name} and gained {exp} XP!`)
 	end
 	
-	-- Visual effect?
+	cleanupEnemyData(enemy)
+	removeFromGrid(enemy)
 	
 	task.delay(1, function()
 		if enemy and enemy.Parent then
