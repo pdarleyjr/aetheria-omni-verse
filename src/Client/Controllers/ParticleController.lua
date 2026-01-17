@@ -23,11 +23,20 @@ ParticleController._zoneMaid = nil
 ParticleController._weaponTrails = {}
 ParticleController._environmentalEmitters = {}
 
+-- Object pooling for particle emitters
+ParticleController._emitterPool = {}
+ParticleController._emitterPoolSize = 100
+ParticleController._emitterPoolIndex = 1
+
 -- Performance limits
 local MAX_FOG_EMITTERS = 3
 local MAX_DEBRIS_EMITTERS = 3
 local MAX_DUST_EMITTERS = 3
 local HUB_RADIUS = 150
+
+-- LOD distance thresholds
+local LOD_SKIP_DISTANCE = 200
+local LOD_REDUCE_DISTANCE = 100
 
 function ParticleController:Init()
 	print("[ParticleController] Initializing...")
@@ -40,6 +49,9 @@ function ParticleController:Init()
 		debris = {},
 		dust = {}
 	}
+	
+	-- Initialize emitter pool
+	self:CreateEmitterPool()
 	
 	-- Listen for enemy death (environmental effect only - souls rising)
 	local OnEnemyDeath = Remotes.GetEvent("OnEnemyDeath")
@@ -298,6 +310,50 @@ function ParticleController:UpdateEnvironmentalIntensity()
 	end
 end
 
+function ParticleController:CreateEmitterPool()
+	self._emitterPool = {}
+	for i = 1, self._emitterPoolSize do
+		local part = Instance.new("Part")
+		part.Name = "PooledEmitter_" .. i
+		part.Size = Vector3.new(1, 1, 1)
+		part.Anchored = true
+		part.CanCollide = false
+		part.Transparency = 1
+		part.Parent = nil -- Start unparented
+		
+		local emitter = Instance.new("ParticleEmitter")
+		emitter.Name = "PooledParticles"
+		emitter.Rate = 0
+		emitter.Parent = part
+		
+		table.insert(self._emitterPool, {part = part, emitter = emitter, inUse = false})
+	end
+	print("[ParticleController] Created pool of " .. self._emitterPoolSize .. " particle emitters")
+end
+
+function ParticleController:GetFromPool()
+	-- Round-robin through pool
+	for i = 1, self._emitterPoolSize do
+		local index = ((self._emitterPoolIndex - 1 + i) % self._emitterPoolSize) + 1
+		local poolItem = self._emitterPool[index]
+		if not poolItem.inUse then
+			poolItem.inUse = true
+			self._emitterPoolIndex = index + 1
+			return poolItem
+		end
+	end
+	-- All in use, reuse oldest
+	local oldest = self._emitterPool[self._emitterPoolIndex]
+	self._emitterPoolIndex = (self._emitterPoolIndex % self._emitterPoolSize) + 1
+	return oldest
+end
+
+function ParticleController:ReturnToPool(poolItem)
+	poolItem.inUse = false
+	poolItem.part.Parent = nil
+	poolItem.emitter:Clear()
+end
+
 function ParticleController:SpawnFloatingDebris(region)
 	-- region = {Center = Vector3, Size = Vector3}
 	local center = region.Center or Vector3.new(0, 10, 0)
@@ -383,16 +439,23 @@ function ParticleController:SpawnAmbientDust()
 end
 
 function ParticleController:SpawnDeathEffect(position)
-	local part = Instance.new("Part")
-	part.Name = "DeathEffect"
-	part.Size = Vector3.new(1, 1, 1)
+	-- LOD check
+	local camera = Workspace.CurrentCamera
+	if camera then
+		local distance = (position - camera.CFrame.Position).Magnitude
+		if distance > LOD_SKIP_DISTANCE then
+			return -- Skip effect entirely
+		end
+	end
+	
+	local poolItem = self:GetFromPool()
+	local part = poolItem.part
+	local emitter = poolItem.emitter
+	
 	part.Position = position
-	part.Anchored = true
-	part.CanCollide = false
-	part.Transparency = 1
 	part.Parent = Workspace
 	
-	local emitter = Instance.new("ParticleEmitter")
+	-- Configure emitter for death effect
 	emitter.Texture = "rbxassetid://241685484"
 	emitter.Color = ColorSequence.new(Color3.fromRGB(100, 0, 150), Color3.fromRGB(50, 0, 80))
 	emitter.Size = NumberSequence.new({
@@ -406,10 +469,20 @@ function ParticleController:SpawnDeathEffect(position)
 	emitter.SpreadAngle = Vector2.new(360, 360)
 	emitter.Drag = 2
 	emitter.LightEmission = 0.5
-	emitter.Parent = part
-	emitter:Emit(30)
 	
-	Debris:AddItem(part, 2)
+	-- LOD: reduce particle count at distance
+	local emitCount = 30
+	if camera then
+		local distance = (position - camera.CFrame.Position).Magnitude
+		if distance > LOD_REDUCE_DISTANCE then
+			emitCount = 15 -- Reduce by 50%
+		end
+	end
+	emitter:Emit(emitCount)
+	
+	task.delay(2, function()
+		self:ReturnToPool(poolItem)
+	end)
 end
 
 function ParticleController:CreateWeaponTrail(weapon)

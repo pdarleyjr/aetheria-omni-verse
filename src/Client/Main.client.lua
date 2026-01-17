@@ -58,11 +58,15 @@ local function initializeControllers()
 	for _, controllerData in ipairs(controllers) do
 		if type(controllerData.Controller.Init) == "function" then
 			task.spawn(function()
+				debug.profilebegin(controllerData.Name .. "_Init")
+				local initStart = os.clock()
 				local success, err = pcall(function()
 					controllerData.Controller:Init()
 				end)
+				local initTime = os.clock() - initStart
+				debug.profileend()
 				if success then
-					print(`✓ {controllerData.Name} initialized`)
+					print(`✓ {controllerData.Name} initialized ({string.format("%.3f", initTime * 1000)}ms)`)
 				else
 					warn(`[ERROR] {controllerData.Name} Init failed: {err}`)
 				end
@@ -77,11 +81,15 @@ local function startControllers()
 	for _, controllerData in ipairs(controllers) do
 		if type(controllerData.Controller.Start) == "function" then
 			task.spawn(function()
+				debug.profilebegin(controllerData.Name .. "_Start")
+				local startStart = os.clock()
 				local success, err = pcall(function()
 					controllerData.Controller:Start()
 				end)
+				local startTime = os.clock() - startStart
+				debug.profileend()
 				if success then
-					print(`✓ {controllerData.Name} started`)
+					print(`✓ {controllerData.Name} started ({string.format("%.3f", startTime * 1000)}ms)`)
 				else
 					warn(`[ERROR] {controllerData.Name} Start failed: {err}`)
 				end

@@ -87,6 +87,10 @@ function Remotes.Init()
 	-- Shop/Economy Remotes
 	_functions["PurchaseItem"] = createRemote("PurchaseItem", "RemoteFunction")
 	_events["GoldUpdate"] = createRemote("GoldUpdate", "RemoteEvent")
+	_events["PurchaseResult"] = createRemote("PurchaseResult", "RemoteEvent")
+	
+	-- Enemy Remotes (additional)
+	_events["EnemyDeath"] = createRemote("EnemyDeath", "RemoteEvent")
 	
 	print("✓ All Remote Events created")
 end

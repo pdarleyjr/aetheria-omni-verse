@@ -2,9 +2,47 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 local Constants = require(ReplicatedStorage.Shared.Modules.Constants)
 local QuestService = require(script.Parent.QuestService)
+
+-- Atmospheric configuration by zone
+local ZONE_ATMOSPHERES = {
+	["Hub"] = {
+		Density = 0.2,
+		Color = Color3.fromRGB(100, 80, 180),
+		Haze = 0,
+		Glare = 0,
+		Offset = 0
+	},
+	["Glitch Wastes"] = {
+		Density = 0.5,
+		Color = Color3.fromRGB(150, 50, 200),
+		Haze = 2,
+		Glare = 0.5,
+		Offset = 0.3
+	},
+	["Azure Sea"] = {
+		Density = 0.3,
+		Color = Color3.fromRGB(80, 150, 220),
+		Haze = 1,
+		Glare = 0.2,
+		Offset = 0.1
+	},
+	["Throne of the Glitch King"] = {
+		Density = 0.7,
+		Color = Color3.fromRGB(200, 0, 100),
+		Haze = 5,
+		Glare = 1,
+		Offset = 0.5
+	}
+}
+
+-- Difficulty scaling based on distance from Hub
+local HUB_CENTER = Vector3.new(0, 0, 0)
+local MAX_DIFFICULTY_DISTANCE = 1000
 
 local WorkspaceService = {}
 
@@ -13,13 +51,35 @@ function WorkspaceService:SetupLighting()
 	Lighting.Brightness = 2
 	Lighting.OutdoorAmbient = Color3.fromRGB(80, 40, 120) -- Purple
 
+	-- Enhanced Atmosphere with volumetric fog
 	local atmosphere = Instance.new("Atmosphere")
+	atmosphere.Name = "MainAtmosphere"
 	atmosphere.Density = 0.3
 	atmosphere.Offset = 0
 	atmosphere.Color = Color3.fromRGB(80, 40, 120)
+	atmosphere.DecayColor = Color3.fromRGB(40, 20, 60)
 	atmosphere.Glare = 0
-	atmosphere.Haze = 0
+	atmosphere.Haze = 1
 	atmosphere.Parent = Lighting
+	self.Atmosphere = atmosphere
+
+	-- Bloom for ethereal glow
+	local bloom = Instance.new("BloomEffect")
+	bloom.Name = "ChaosBloom"
+	bloom.Intensity = 0.5
+	bloom.Size = 24
+	bloom.Threshold = 0.9
+	bloom.Parent = Lighting
+
+	-- Color correction for "Cohesive Chaos" aesthetic
+	local colorCorrection = Instance.new("ColorCorrectionEffect")
+	colorCorrection.Name = "ChaosColorCorrection"
+	colorCorrection.Brightness = 0.05
+	colorCorrection.Contrast = 0.15
+	colorCorrection.Saturation = 0.2
+	colorCorrection.TintColor = Color3.fromRGB(255, 240, 255)
+	colorCorrection.Parent = Lighting
+	self.ColorCorrection = colorCorrection
 
 	local sky = Instance.new("Sky")
 	sky.Name = "NebulaSky"
@@ -30,6 +90,36 @@ function WorkspaceService:SetupLighting()
 	sky.SkyboxRt = "rbxassetid://159454299"
 	sky.SkyboxUp = "rbxassetid://159454299"
 	sky.Parent = Lighting
+	
+	-- Start time-of-day cycle
+	self:StartDayNightCycle()
+end
+
+function WorkspaceService:StartDayNightCycle()
+	-- Slowly cycle time of day
+	task.spawn(function()
+		while true do
+			Lighting.ClockTime = (Lighting.ClockTime + 0.001) % 24
+			self:UpdateDustMotesForTimeOfDay()
+			task.wait(0.1)
+		end
+	end)
+end
+
+function WorkspaceService:UpdateDustMotesForTimeOfDay()
+	local dustEmitters = Workspace:FindFirstChild("DustMotes")
+	if not dustEmitters then return end
+	
+	local time = Lighting.ClockTime
+	local isDaytime = time >= 6 and time <= 18
+	local brightness = isDaytime and 1 or 0.3
+	
+	for _, emitter in pairs(dustEmitters:GetDescendants()) do
+		if emitter:IsA("ParticleEmitter") then
+			emitter.LightEmission = brightness
+			emitter.Rate = isDaytime and 15 or 5
+		end
+	end
 end
 
 function WorkspaceService:TeleportToHub(player)
@@ -51,10 +141,226 @@ function WorkspaceService:Start()
 	self:GenerateDecor()
 	self:GenerateHubDecor()
 	self:GenerateEnvironmentalParticles()
+	self:GenerateAmbientDustMotes()
+	self:GenerateZoneSpecificEffects()
 	self:SpawnWilds()
 	self:SpawnThrone()
 	self:SpawnAzureSea()
 	self:GeneratePortals()
+	self:StartZoneAtmosphereMonitoring()
+end
+
+function WorkspaceService:GenerateAmbientDustMotes()
+	local dustFolder = Instance.new("Folder")
+	dustFolder.Name = "DustMotes"
+	dustFolder.Parent = Workspace
+	
+	-- Create dust emitters at key locations
+	local locations = {
+		{pos = Vector3.new(0, 10, 0), size = Vector3.new(200, 50, 200), name = "HubDust"},
+		{pos = Vector3.new(500, 10, 0), size = Vector3.new(300, 50, 300), name = "GlitchDust"},
+		{pos = Vector3.new(0, 10, 2000), size = Vector3.new(500, 50, 500), name = "SeaDust"},
+	}
+	
+	for _, loc in ipairs(locations) do
+		local emitterPart = Instance.new("Part")
+		emitterPart.Name = loc.name
+		emitterPart.Size = loc.size
+		emitterPart.Position = loc.pos
+		emitterPart.Anchored = true
+		emitterPart.CanCollide = false
+		emitterPart.Transparency = 1
+		emitterPart.Parent = dustFolder
+		
+		local dustEmitter = Instance.new("ParticleEmitter")
+		dustEmitter.Name = "DustParticles"
+		dustEmitter.Texture = "rbxassetid://241685484"
+		dustEmitter.Color = ColorSequence.new(Color3.fromRGB(200, 180, 255))
+		dustEmitter.Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.1),
+			NumberSequenceKeypoint.new(0.5, 0.3),
+			NumberSequenceKeypoint.new(1, 0.1)
+		})
+		dustEmitter.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(0.3, 0.6),
+			NumberSequenceKeypoint.new(0.7, 0.6),
+			NumberSequenceKeypoint.new(1, 1)
+		})
+		dustEmitter.Lifetime = NumberRange.new(5, 10)
+		dustEmitter.Speed = NumberRange.new(0.2, 1)
+		dustEmitter.SpreadAngle = Vector2.new(180, 180)
+		dustEmitter.Rate = 10
+		dustEmitter.RotSpeed = NumberRange.new(-10, 10)
+		dustEmitter.LightEmission = 0.5
+		dustEmitter.Parent = emitterPart
+	end
+	
+	print("[WorkspaceService] Generated Ambient Dust Motes")
+end
+
+function WorkspaceService:GenerateZoneSpecificEffects()
+	local effectsFolder = Instance.new("Folder")
+	effectsFolder.Name = "ZoneEffects"
+	effectsFolder.Parent = Workspace
+	
+	-- Glitch distortion effect near Glitch King Throne
+	local throneZone = Constants.ZONES["Throne of the Glitch King"]
+	if throneZone then
+		self:CreateGlitchDistortionEffect(effectsFolder, throneZone.Center)
+	end
+	
+	-- Heat shimmer effect for intense zones (simulated with particles)
+	local glitchZone = Constants.ZONES["Glitch Wastes"]
+	if glitchZone then
+		self:CreateHeatShimmerEffect(effectsFolder, glitchZone.Center)
+	end
+	
+	print("[WorkspaceService] Generated Zone-Specific Effects")
+end
+
+function WorkspaceService:CreateGlitchDistortionEffect(parent, center)
+	-- Visual glitch distortion using rapidly flickering parts
+	local glitchPart = Instance.new("Part")
+	glitchPart.Name = "GlitchDistortion"
+	glitchPart.Size = Vector3.new(100, 100, 100)
+	glitchPart.Position = center
+	glitchPart.Anchored = true
+	glitchPart.CanCollide = false
+	glitchPart.Transparency = 1
+	glitchPart.Parent = parent
+	
+	-- Glitch particles
+	local glitchEmitter = Instance.new("ParticleEmitter")
+	glitchEmitter.Name = "GlitchParticles"
+	glitchEmitter.Texture = "rbxassetid://243660364"
+	glitchEmitter.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 100)),
+		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 255)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 255))
+	})
+	glitchEmitter.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0),
+		NumberSequenceKeypoint.new(0.1, 2),
+		NumberSequenceKeypoint.new(0.2, 0),
+		NumberSequenceKeypoint.new(0.3, 3),
+		NumberSequenceKeypoint.new(0.5, 0),
+		NumberSequenceKeypoint.new(1, 0)
+	})
+	glitchEmitter.Transparency = NumberSequence.new(0.3, 0.8)
+	glitchEmitter.Lifetime = NumberRange.new(0.2, 0.5)
+	glitchEmitter.Speed = NumberRange.new(5, 20)
+	glitchEmitter.SpreadAngle = Vector2.new(180, 180)
+	glitchEmitter.Rate = 50
+	glitchEmitter.LightEmission = 1
+	glitchEmitter.RotSpeed = NumberRange.new(-500, 500)
+	glitchEmitter.Parent = glitchPart
+	
+	-- Flicker effect
+	task.spawn(function()
+		while glitchPart.Parent do
+			glitchEmitter.Rate = math.random(20, 80)
+			glitchEmitter.Speed = NumberRange.new(math.random(3, 10), math.random(15, 30))
+			task.wait(0.1 + math.random() * 0.2)
+		end
+	end)
+end
+
+function WorkspaceService:CreateHeatShimmerEffect(parent, center)
+	-- Heat shimmer using rising particles
+	local shimmerPart = Instance.new("Part")
+	shimmerPart.Name = "HeatShimmer"
+	shimmerPart.Size = Vector3.new(300, 5, 300)
+	shimmerPart.Position = center + Vector3.new(0, 2, 0)
+	shimmerPart.Anchored = true
+	shimmerPart.CanCollide = false
+	shimmerPart.Transparency = 1
+	shimmerPart.Parent = parent
+	
+	local shimmerEmitter = Instance.new("ParticleEmitter")
+	shimmerEmitter.Name = "ShimmerParticles"
+	shimmerEmitter.Texture = "rbxassetid://241685484"
+	shimmerEmitter.Color = ColorSequence.new(Color3.fromRGB(255, 200, 150))
+	shimmerEmitter.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 3),
+		NumberSequenceKeypoint.new(0.5, 5),
+		NumberSequenceKeypoint.new(1, 3)
+	})
+	shimmerEmitter.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.95),
+		NumberSequenceKeypoint.new(0.5, 0.85),
+		NumberSequenceKeypoint.new(1, 0.95)
+	})
+	shimmerEmitter.Lifetime = NumberRange.new(2, 4)
+	shimmerEmitter.Speed = NumberRange.new(2, 5)
+	shimmerEmitter.SpreadAngle = Vector2.new(10, 10)
+	shimmerEmitter.Rate = 30
+	shimmerEmitter.Acceleration = Vector3.new(0, 1, 0)
+	shimmerEmitter.LightEmission = 0.1
+	shimmerEmitter.Parent = shimmerPart
+end
+
+function WorkspaceService:StartZoneAtmosphereMonitoring()
+	-- Monitor player positions and adjust atmosphere based on zone
+	task.spawn(function()
+		while true do
+			for _, player in pairs(Players:GetPlayers()) do
+				local character = player.Character
+				if character then
+					local root = character:FindFirstChild("HumanoidRootPart")
+					if root then
+						self:UpdateAtmosphereForPosition(root.Position)
+					end
+				end
+			end
+			task.wait(1)
+		end
+	end)
+end
+
+function WorkspaceService:UpdateAtmosphereForPosition(position)
+	if not self.Atmosphere then return end
+	
+	-- Calculate distance from hub for difficulty scaling
+	local distanceFromHub = (position - HUB_CENTER).Magnitude
+	local difficultyFactor = math.clamp(distanceFromHub / MAX_DIFFICULTY_DISTANCE, 0, 1)
+	
+	-- Determine current zone
+	local currentZone = "Hub"
+	for zoneName, zoneData in pairs(Constants.ZONES or {}) do
+		if zoneData.Center then
+			local zoneDistance = (position - zoneData.Center).Magnitude
+			local zoneRadius = zoneData.Size and math.max(zoneData.Size.X, zoneData.Size.Z) / 2 or 500
+			if zoneDistance < zoneRadius then
+				currentZone = zoneName
+				break
+			end
+		end
+	end
+	
+	-- Get atmosphere settings for zone
+	local zoneAtmo = ZONE_ATMOSPHERES[currentZone] or ZONE_ATMOSPHERES["Hub"]
+	
+	-- Apply difficulty scaling - more intense effects further from hub
+	local scaledDensity = zoneAtmo.Density + (difficultyFactor * 0.3)
+	local scaledHaze = zoneAtmo.Haze + (difficultyFactor * 2)
+	
+	-- Tween atmosphere changes for smooth transitions
+	TweenService:Create(self.Atmosphere, TweenInfo.new(2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Density = scaledDensity,
+		Color = zoneAtmo.Color,
+		Haze = scaledHaze,
+		Glare = zoneAtmo.Glare,
+		Offset = zoneAtmo.Offset
+	}):Play()
+	
+	-- Adjust color correction based on difficulty
+	if self.ColorCorrection then
+		TweenService:Create(self.ColorCorrection, TweenInfo.new(2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Contrast = 0.15 + (difficultyFactor * 0.1),
+			Saturation = 0.2 - (difficultyFactor * 0.1)
+		}):Play()
+	end
 end
 
 function WorkspaceService:SpawnWilds()

@@ -3,6 +3,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
+local PathfindingService = game:GetService("PathfindingService")
 
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Constants = require(ReplicatedStorage.Shared.Modules.Constants)
@@ -21,15 +22,12 @@ local STATE_AGGRO = "Aggro"
 local STATE_ATTACK = "Attack"
 local STATE_RETREAT = "Retreat"
 
--- Configuration
+-- Configuration - Updated per task specifications
 local HUB_POSITION = Vector3.new(0, 0, 0)
-local DIFFICULTY_SCALING = {
-	HealthPerHundredStuds = 0.10,
-	DamagePerHundredStuds = 0.05,
-	SpeedPerHundredStuds = 0.03,
-}
+local AGGRO_RANGE = 40 -- studs
+local RETREAT_HEALTH_THRESHOLD = 0.25 -- 25%
 local ELITE_SPAWN_CHANCE = 0.10
-local MINI_BOSS_THRESHOLDS = {500, 1000, 1500}
+local MINI_BOSS_INTERVAL = 500 -- Every 500 studs from hub
 
 -- Spatial partitioning grid
 local GRID_SIZE = 100
@@ -93,7 +91,7 @@ local function updateGridPosition(enemy: Model)
 end
 
 --===============================
--- DIFFICULTY SCALING
+-- DIFFICULTY SCALING (Updated formulas per task)
 --===============================
 
 function EnemyService:GetDistanceFromHub(position: Vector3): number
@@ -102,26 +100,29 @@ end
 
 function EnemyService:GetDifficultyMultipliers(position: Vector3): (number, number, number)
 	local distance = self:GetDistanceFromHub(position)
-	local units = distance / 100
 	
-	local healthMult = 1 + (units * DIFFICULTY_SCALING.HealthPerHundredStuds)
-	local damageMult = 1 + (units * DIFFICULTY_SCALING.DamagePerHundredStuds)
-	local speedMult = 1 + (units * DIFFICULTY_SCALING.SpeedPerHundredStuds)
+	-- Health: 1.0 + distance/500
+	local healthMult = 1.0 + distance / 500
+	-- Damage: 1.0 + distance/750
+	local damageMult = 1.0 + distance / 750
+	-- Speed: 1.0 + distance/1000, capped at 1.5x
+	local speedMult = math.min(1.5, 1.0 + distance / 1000)
 	
 	return healthMult, damageMult, speedMult
 end
 
 function EnemyService:GetSpawnDensity(position: Vector3): number
 	local distance = self:GetDistanceFromHub(position)
-	return 1 + (distance / 500) -- Increases with distance
+	-- base + floor(distance/200)
+	return 1 + math.floor(distance / 200)
 end
 
 function EnemyService:ShouldSpawnMiniBoss(position: Vector3): boolean
 	local distance = self:GetDistanceFromHub(position)
-	for _, threshold in ipairs(MINI_BOSS_THRESHOLDS) do
-		if math.abs(distance - threshold) < 50 then
-			return math.random() < 0.05 -- 5% chance at thresholds
-		end
+	-- Every 500 studs from Hub
+	local nearestThreshold = math.floor(distance / MINI_BOSS_INTERVAL) * MINI_BOSS_INTERVAL
+	if nearestThreshold > 0 and math.abs(distance - nearestThreshold) < 50 then
+		return math.random() < 0.05 -- 5% chance at thresholds
 	end
 	return false
 end
@@ -222,17 +223,22 @@ function EnemyService:TelegraphAttack(enemy: Model, targetPosition: Vector3, dur
 end
 
 --===============================
--- ELITE & MINI-BOSS CREATION
+-- ELITE & MINI-BOSS CREATION (Updated per task)
 --===============================
 
 function EnemyService:MakeElite(enemy: Model, humanoid: Humanoid)
 	enemy:SetAttribute("IsElite", true)
+	-- Rename with Elite_ prefix
+	enemy.Name = "Elite_" .. enemy.Name
 	
-	-- 2x health, 1.5x damage
-	humanoid.MaxHealth = humanoid.MaxHealth * 2
+	-- 3x health, 2x rewards per task spec
+	humanoid.MaxHealth = humanoid.MaxHealth * 3
 	humanoid.Health = humanoid.MaxHealth
 	enemy:SetAttribute("Damage", math.floor(enemy:GetAttribute("Damage") * 1.5))
-	enemy:SetAttribute("ExpReward", math.floor(enemy:GetAttribute("ExpReward") * 2.5))
+	enemy:SetAttribute("ExpReward", math.floor(enemy:GetAttribute("ExpReward") * 2))
+	
+	-- Unique attack patterns for elites
+	enemy:SetAttribute("EliteAttackPattern", math.random(1, 3))
 	
 	-- Glowing effect
 	local root = enemy:FindFirstChild("HumanoidRootPart")
@@ -528,6 +534,42 @@ function EnemyService:CreateHealthBar(model)
 end
 
 --===============================
+-- PATHFINDING FOR PATROL
+--===============================
+
+function EnemyService:ComputePatrolPath(enemy: Model, humanoid: Humanoid, targetPos: Vector3)
+	local rootPart = enemy:FindFirstChild("HumanoidRootPart")
+	if not rootPart then return end
+	
+	local path = PathfindingService:CreatePath({
+		AgentRadius = 2,
+		AgentHeight = 5,
+		AgentCanJump = true,
+		AgentCanClimb = false,
+	})
+	
+	local success, errorMessage = pcall(function()
+		path:ComputeAsync(rootPart.Position, targetPos)
+	end)
+	
+	if success and path.Status == Enum.PathStatus.Success then
+		local waypoints = path:GetWaypoints()
+		for _, waypoint in ipairs(waypoints) do
+			humanoid:MoveTo(waypoint.Position)
+			humanoid.MoveToFinished:Wait()
+			
+			-- Break if state changed
+			if enemy:GetAttribute("State") ~= STATE_PATROL then
+				break
+			end
+		end
+	else
+		-- Fallback to direct movement
+		humanoid:MoveTo(targetPos)
+	end
+end
+
+--===============================
 -- AI UPDATE LOOP
 --===============================
 
@@ -623,10 +665,10 @@ function EnemyService:UpdateRegularEnemy(enemy: Model, humanoid: Humanoid, rootP
 	local state = enemy:GetAttribute("State") or STATE_IDLE
 	local homePos = enemy:GetAttribute("HomePosition") or rootPart.Position
 	local healthPercent = humanoid.Health / humanoid.MaxHealth
-	local aggroRange = enemy:GetAttribute("AggroRange") or 40
+	local aggroRange = enemy:GetAttribute("AggroRange") or AGGRO_RANGE
 	
-	-- State Transitions
-	if healthPercent < 0.2 then
+	-- State Transitions (Updated: retreat at 25%)
+	if healthPercent < RETREAT_HEALTH_THRESHOLD then
 		state = STATE_RETREAT
 	elseif state == STATE_IDLE then
 		if target and distanceToTarget < aggroRange then
@@ -699,7 +741,10 @@ function EnemyService:DoPatrolBehavior(enemy, humanoid, rootPart, homePos, now)
 	end
 	
 	if now - (enemy:GetAttribute("LastMove") or 0) > 0.5 then
-		humanoid:MoveTo(patrolTarget)
+		-- Use PathfindingService for waypoint-based movement
+		task.spawn(function()
+			self:ComputePatrolPath(enemy, humanoid, patrolTarget)
+		end)
 		enemy:SetAttribute("LastMove", now)
 	end
 end

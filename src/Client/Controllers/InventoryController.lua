@@ -11,21 +11,20 @@ local Maid = require(Shared.Modules.Maid)
 local Remotes = require(Shared.Remotes)
 
 local InventoryController = {}
-InventoryController.Maid = Maid.new()
+InventoryController._maid = nil
 
 function InventoryController:Init()
+	print("[InventoryController] Initializing...")
+	
+	self._maid = Maid.new()
 	self.Player = Players.LocalPlayer
 	self.PlayerGui = self.Player:WaitForChild("PlayerGui")
 	
 	self.IsVisible = false
 	
 	-- Wait for MainHUD to be created by UIController
-	-- In a real framework, we might use a signal or dependency injection
-	-- For now, we'll wait a bit or check periodically, or just create our own ScreenGui if needed.
-	-- But UIController creates "MainHUD".
-	
 	task.spawn(function()
-		local hud = self.PlayerGui:WaitForChild("MainHUD") -- Removed timeout to prevent failure on slow load
+		local hud = self.PlayerGui:WaitForChild("MainHUD")
 		if hud then
 			self:CreateInventoryUI(hud)
 		else
@@ -34,17 +33,22 @@ function InventoryController:Init()
 	end)
 	
 	local UpdateHUD = Remotes.GetEvent("UpdateHUD")
-	UpdateHUD.OnClientEvent:Connect(function(data)
+	self._maid:GiveTask(UpdateHUD.OnClientEvent:Connect(function(data)
 		if data and data.Inventory then
 			self:UpdateInventory(data.Inventory)
 		end
-	end)
-	
-	print("[InventoryController] Initialized")
+	end))
 end
 
 function InventoryController:Start()
-	print("[InventoryController] Started")
+	print("[InventoryController] Starting...")
+	
+	-- Cleanup when player leaves
+	self._maid:GiveTask(Players.PlayerRemoving:Connect(function(leavingPlayer)
+		if leavingPlayer == self.Player then
+			self:Destroy()
+		end
+	end))
 end
 
 function InventoryController:Toggle()
@@ -193,6 +197,12 @@ function InventoryController:UpdateInventory(inventory)
 		btn.Activated:Connect(function()
 			EquipSpirit:FireServer(uniqueId)
 		end)
+	end
+end
+
+function InventoryController:Destroy()
+	if self._maid then
+		self._maid:Destroy()
 	end
 end
 

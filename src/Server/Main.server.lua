@@ -75,11 +75,15 @@ local function initializeServices()
 		if type(serviceData.Service.Init) == "function" then
 			print(`[Loader] Initializing {serviceData.Name}...`)
 			task.spawn(function()
+				debug.profilebegin(serviceData.Name .. "_Init")
+				local initStart = os.clock()
 				local success, err = pcall(function()
 					serviceData.Service:Init()
 				end)
+				local initTime = os.clock() - initStart
+				debug.profileend()
 				if success then
-					print(`✓ {serviceData.Name} initialized`)
+					print(`✓ {serviceData.Name} initialized ({string.format("%.3f", initTime * 1000)}ms)`)
 				else
 					warn(`[ERROR] {serviceData.Name} Init failed: {err}`)
 					warn(debug.traceback())
@@ -98,11 +102,15 @@ local function startServices()
 		if type(serviceData.Service.Start) == "function" then
 			print(`[Loader] Starting {serviceData.Name}...`)
 			task.spawn(function()
+				debug.profilebegin(serviceData.Name .. "_Start")
+				local startStart = os.clock()
 				local success, err = pcall(function()
 					serviceData.Service:Start()
 				end)
+				local startTime = os.clock() - startStart
+				debug.profileend()
 				if success then
-					print(`✓ {serviceData.Name} started`)
+					print(`✓ {serviceData.Name} started ({string.format("%.3f", startTime * 1000)}ms)`)
 				else
 					warn(`[ERROR] {serviceData.Name} Start failed: {err}`)
 					warn(debug.traceback())

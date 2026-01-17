@@ -11,6 +11,18 @@ local ShopService = {}
 -- Use the pre-built catalog from Constants
 local SHOP_CATALOG = Constants.SHOP_CATALOG
 
+-- Weapon rarity damage multipliers
+local RARITY_MULTIPLIERS = {
+	Common = 1.0,
+	Uncommon = 1.25,
+	Rare = 1.5,
+	Epic = 2.0,
+	Legendary = 3.0,
+}
+
+-- Consumable stack limits
+local CONSUMABLE_STACK_LIMIT = 99
+
 -- Result codes for client feedback
 local RESULT_CODES = {
 	SUCCESS = "SUCCESS",
@@ -20,6 +32,7 @@ local RESULT_CODES = {
 	ALREADY_OWNED = "ALREADY_OWNED",
 	TRANSACTION_FAILED = "TRANSACTION_FAILED",
 	INVALID_TYPE = "INVALID_TYPE",
+	STACK_LIMIT_REACHED = "STACK_LIMIT_REACHED",
 }
 
 function ShopService:Init()
@@ -109,6 +122,10 @@ function ShopService:PurchaseStatUpgrade(player, itemDef)
 		return false, RESULT_CODES.TRANSACTION_FAILED
 	end
 	
+	-- Fire DataChanged for stats update
+	local dataChangedEvent = Remotes.GetEvent("DataChanged")
+	dataChangedEvent:FireClient(player, "Stats", DataService.GetData(player).Stats)
+	
 	self:LogTransaction(player, itemDef.id, true, RESULT_CODES.SUCCESS, cost)
 	return true, RESULT_CODES.SUCCESS
 end
@@ -132,8 +149,26 @@ function ShopService:PurchaseWeapon(player, itemDef)
 			error("Failed to deduct gold")
 		end
 		
+		-- Apply rarity multiplier to weapon stats
+		local multiplier = RARITY_MULTIPLIERS[itemDef.rarity] or 1.0
+		local scaledStats = {}
+		if itemDef.stats then
+			for stat, value in pairs(itemDef.stats) do
+				scaledStats[stat] = math.floor(value * multiplier)
+			end
+		end
+		
+		-- Create weapon data with scaled stats
+		local weaponData = {
+			id = itemDef.id,
+			name = itemDef.name,
+			rarity = itemDef.rarity,
+			stats = scaledStats,
+			rarityMultiplier = multiplier,
+		}
+		
 		-- Add weapon to inventory
-		local added = DataService.AddWeapon(player, itemDef)
+		local added = DataService.AddWeapon(player, weaponData)
 		if not added then
 			error("Failed to add weapon")
 		end
@@ -146,6 +181,10 @@ function ShopService:PurchaseWeapon(player, itemDef)
 		return false, RESULT_CODES.TRANSACTION_FAILED
 	end
 	
+	-- Fire DataChanged for inventory update
+	local dataChangedEvent = Remotes.GetEvent("DataChanged")
+	dataChangedEvent:FireClient(player, "Inventory", DataService.GetData(player).Inventory)
+	
 	self:LogTransaction(player, itemDef.id, true, RESULT_CODES.SUCCESS, cost)
 	return true, RESULT_CODES.SUCCESS
 end
@@ -154,6 +193,16 @@ end
 function ShopService:PurchaseConsumable(player, itemDef)
 	local cost = itemDef.cost
 	local previousGold = DataService.GetGold(player)
+	
+	-- Check stack limit before purchase
+	local data = DataService.GetData(player)
+	if data and data.Inventory.Consumables and data.Inventory.Consumables[itemDef.id] then
+		local currentCount = data.Inventory.Consumables[itemDef.id].count or 0
+		if currentCount >= CONSUMABLE_STACK_LIMIT then
+			self:LogTransaction(player, itemDef.id, false, RESULT_CODES.STACK_LIMIT_REACHED)
+			return false, RESULT_CODES.STACK_LIMIT_REACHED
+		end
+	end
 	
 	-- Check balance FIRST
 	if previousGold < cost then
@@ -182,6 +231,10 @@ function ShopService:PurchaseConsumable(player, itemDef)
 		self:LogTransaction(player, itemDef.id, false, RESULT_CODES.TRANSACTION_FAILED, nil, err)
 		return false, RESULT_CODES.TRANSACTION_FAILED
 	end
+	
+	-- Fire DataChanged for inventory update
+	local dataChangedEvent = Remotes.GetEvent("DataChanged")
+	dataChangedEvent:FireClient(player, "Inventory", DataService.GetData(player).Inventory)
 	
 	self:LogTransaction(player, itemDef.id, true, RESULT_CODES.SUCCESS, cost)
 	return true, RESULT_CODES.SUCCESS
@@ -225,6 +278,10 @@ function ShopService:PurchaseCosmetic(player, itemDef)
 		self:LogTransaction(player, itemDef.id, false, RESULT_CODES.TRANSACTION_FAILED, nil, err)
 		return false, RESULT_CODES.TRANSACTION_FAILED
 	end
+	
+	-- Fire DataChanged for inventory update
+	local dataChangedEvent = Remotes.GetEvent("DataChanged")
+	dataChangedEvent:FireClient(player, "Inventory", DataService.GetData(player).Inventory)
 	
 	self:LogTransaction(player, itemDef.id, true, RESULT_CODES.SUCCESS, cost)
 	return true, RESULT_CODES.SUCCESS

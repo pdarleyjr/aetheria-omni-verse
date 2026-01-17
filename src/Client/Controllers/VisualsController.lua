@@ -14,9 +14,13 @@ local VisualsController = {}
 VisualsController._maid = nil
 VisualsController._settings = nil
 VisualsController._damageNumberPool = {}
-VisualsController._poolSize = 20
+VisualsController._poolSize = 50 -- Expanded from 20 to 50
 VisualsController._activeParticles = 0
 VisualsController._maxConcurrentParticles = 50
+
+-- LOD distance thresholds
+local LOD_SKIP_DISTANCE = 200 -- Skip effects beyond this distance
+local LOD_REDUCE_DISTANCE = 100 -- Reduce particle count between 100-200 studs
 
 function VisualsController:Init()
 	print("[VisualsController] Initializing...")
@@ -183,6 +187,18 @@ end
 
 function VisualsController:PlayBurstParticles(position, color, count)
 	if self._activeParticles >= self._maxConcurrentParticles then return end
+	
+	-- LOD check: skip effects beyond 200 studs from camera
+	local camera = Workspace.CurrentCamera
+	if camera then
+		local distance = (position - camera.CFrame.Position).Magnitude
+		if distance > LOD_SKIP_DISTANCE then
+			return -- Skip effect entirely
+		elseif distance > LOD_REDUCE_DISTANCE then
+			count = math.ceil(count * 0.5) -- Reduce particle count by 50%
+		end
+	end
+	
 	self._activeParticles = self._activeParticles + 1
 	
 	local part = Instance.new("Part")

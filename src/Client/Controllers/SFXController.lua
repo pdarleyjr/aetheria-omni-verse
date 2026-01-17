@@ -17,9 +17,9 @@ SFXController._reverbGroup = nil
 
 -- Sound IDs organized by category
 local SOUND_IDS = {
-	-- Hit sounds
-	HIT_NORMAL = "rbxassetid://9114076965",
-	HIT_CRITICAL = "rbxassetid://9114177619",
+	-- Hit sounds (using valid Roblox library sounds)
+	HIT_NORMAL = "rbxassetid://3932505589", -- Generic hit sound
+	HIT_CRITICAL = "rbxassetid://3932505589", -- Critical hit (same base, pitch modified)
 	HIT_FIRE = "rbxassetid://5152319836",
 	HIT_ICE = "rbxassetid://9113926617",
 	HIT_LIGHTNING = "rbxassetid://9114270126",
@@ -34,9 +34,9 @@ local SOUND_IDS = {
 	IMPACT_DASH = "rbxassetid://9113651830",
 	IMPACT_ICE = "rbxassetid://9113926617",
 	
-	-- General SFX
-	ENEMY_DEATH = "rbxassetid://4529579271",
-	CURRENCY_PICKUP = "rbxassetid://9120484367",
+	-- General SFX (using valid Roblox library sounds)
+	ENEMY_DEATH = "rbxassetid://6518811702", -- Valid defeat/death sound
+	CURRENCY_PICKUP = "rbxassetid://4612373953", -- Valid pickup/coin sound
 	UI_CLICK = "rbxassetid://9114270126",
 	LEVEL_UP = "rbxassetid://9114277900",
 }
@@ -49,7 +49,12 @@ local ELEMENT_MODIFIERS = {
 	Physical = { pitch = 1.0, volume = 0.5 },
 }
 
+-- Pitch variation range for impact sounds
+local PITCH_VARIATION_MIN = 0.9
+local PITCH_VARIATION_MAX = 1.1
+
 local POOL_SIZE = 5
+local CRITICAL_POOL_SIZE = 3 -- Separate pool for critical hit layer
 
 function SFXController:Init()
 	print("[SFXController] Initializing...")
@@ -62,6 +67,7 @@ function SFXController:Init()
 	-- Pre-create sound pools for commonly used sounds
 	self:CreateSoundPool("HIT_NORMAL", SOUND_IDS.HIT_NORMAL)
 	self:CreateSoundPool("HIT_CRITICAL", SOUND_IDS.HIT_CRITICAL)
+	self:CreateSoundPool("CRITICAL_LAYER", SOUND_IDS.HIT_CRITICAL) -- Separate layer for crit stacking
 	self:CreateSoundPool("ENEMY_DEATH", SOUND_IDS.ENEMY_DEATH)
 	self:CreateSoundPool("CURRENCY_PICKUP", SOUND_IDS.CURRENCY_PICKUP)
 end
@@ -153,19 +159,34 @@ function SFXController:PlaySound(name, volume, pitch)
 	sound:Play()
 end
 
+-- Play sound with random pitch variation (0.9-1.1)
+function SFXController:PlaySoundWithPitchVariation(name, volume, basePitch)
+	local pitchVariation = PITCH_VARIATION_MIN + math.random() * (PITCH_VARIATION_MAX - PITCH_VARIATION_MIN)
+	local finalPitch = (basePitch or 1) * pitchVariation
+	self:PlaySound(name, volume, finalPitch)
+end
+
 function SFXController:PlayHitSound(damageType, isCritical)
 	local modifiers = ELEMENT_MODIFIERS[damageType] or ELEMENT_MODIFIERS.Physical
 	
+	-- Apply pitch variation (0.9-1.1) to all impact sounds
+	local pitchVariation = PITCH_VARIATION_MIN + math.random() * (PITCH_VARIATION_MAX - PITCH_VARIATION_MIN)
+	
 	if isCritical then
-		self:PlaySound("HIT_CRITICAL", 0.8 * modifiers.volume, modifiers.pitch)
+		-- Main critical hit sound
+		self:PlaySound("HIT_CRITICAL", 0.8 * modifiers.volume, modifiers.pitch * pitchVariation)
+		-- Separate critical hit layer (louder, slightly different pitch for layered effect)
+		task.delay(0.02, function()
+			self:PlaySound("CRITICAL_LAYER", 0.6, modifiers.pitch * 1.15 * pitchVariation)
+		end)
 	else
-		self:PlaySound("HIT_NORMAL", 0.5 * modifiers.volume, 0.9 + math.random() * 0.2 * modifiers.pitch)
+		self:PlaySound("HIT_NORMAL", 0.5 * modifiers.volume, modifiers.pitch * pitchVariation)
 	end
 	
 	-- Play element-specific hit layer if exists
 	local elementHitKey = "HIT_" .. string.upper(damageType or "PHYSICAL")
 	if self._soundPools[elementHitKey] then
-		self:PlaySound(elementHitKey, 0.3, modifiers.pitch)
+		self:PlaySoundWithPitchVariation(elementHitKey, 0.3, modifiers.pitch)
 	end
 end
 

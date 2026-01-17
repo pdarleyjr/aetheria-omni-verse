@@ -4,15 +4,28 @@ local Debris = game:GetService("Debris")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
+local Maid = require(Shared.Modules.Maid)
 
 local GachaController = {}
+GachaController._maid = nil
 
 function GachaController:Init()
-	print("[GachaController] Init")
+	print("[GachaController] Initializing...")
+	self._maid = Maid.new()
 end
 
 function GachaController:Start()
-	print("[GachaController] Start")
+	print("[GachaController] Starting...")
+	
+	local player = Players.LocalPlayer
+	
+	-- Cleanup when player leaves
+	self._maid:GiveTask(Players.PlayerRemoving:Connect(function(leavingPlayer)
+		if leavingPlayer == player then
+			self:Destroy()
+		end
+	end))
+	
 	self:CreateUI()
 end
 
@@ -24,6 +37,7 @@ function GachaController:CreateUI()
 	screenGui.Name = "GachaUI"
 	screenGui.ResetOnSpawn = false
 	screenGui.Parent = playerGui
+	self._maid:GiveTask(screenGui)
 	
 	-- Summon Button (Top Right)
 	local summonBtn = Instance.new("TextButton")
@@ -41,9 +55,9 @@ function GachaController:CreateUI()
 	corner.CornerRadius = UDim.new(0, 8)
 	corner.Parent = summonBtn
 	
-	summonBtn.Activated:Connect(function()
+	self._maid:GiveTask(summonBtn.Activated:Connect(function()
 		self:PerformSummon(1)
-	end)
+	end))
 end
 
 function GachaController:PerformSummon(amount)
@@ -135,6 +149,12 @@ function GachaController:GetRarityColor(rarity)
 	if rarity == "Rare" then return Color3.fromRGB(0, 170, 255) end
 	if rarity == "Uncommon" then return Color3.fromRGB(0, 255, 0) end
 	return Color3.fromRGB(200, 200, 200)
+end
+
+function GachaController:Destroy()
+	if self._maid then
+		self._maid:Destroy()
+	end
 end
 
 return GachaController

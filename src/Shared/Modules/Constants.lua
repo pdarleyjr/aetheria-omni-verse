@@ -290,12 +290,32 @@ Constants.HITSTOP = {
 -- Damage type colors for particles and numbers
 Constants.DAMAGE_TYPE_COLORS = {
 	Physical = Color3.fromRGB(255, 255, 255),
-	Fire = Color3.fromRGB(255, 100, 50),
+	Fire = Color3.fromRGB(255, 69, 0), -- #FF4500 - Fire/Ignis
+	Ignis = Color3.fromRGB(255, 69, 0), -- #FF4500
+	Water = Color3.fromRGB(0, 206, 209), -- #00CED1
+	Earth = Color3.fromRGB(139, 69, 19), -- #8B4513
+	Air = Color3.fromRGB(224, 255, 255), -- #E0FFFF
 	Ice = Color3.fromRGB(100, 200, 255),
 	Lightning = Color3.fromRGB(255, 255, 100),
 	Poison = Color3.fromRGB(100, 255, 100),
 	Dark = Color3.fromRGB(150, 50, 200),
-	Critical = Color3.fromRGB(255, 200, 50), -- Gold for crits
+	Critical = Color3.fromRGB(255, 215, 0), -- #FFD700 - Gold for crits
+}
+
+-- Screen shake intensity presets based on damage magnitude
+Constants.SCREEN_SHAKE = {
+	LIGHT = 0.1, -- Low damage hits
+	MEDIUM = 0.3, -- Standard damage
+	HEAVY = 0.5, -- High damage / boss hits
+	GetIntensityForDamage = function(damage)
+		if damage < 20 then
+			return Constants.SCREEN_SHAKE.LIGHT
+		elseif damage < 50 then
+			return Constants.SCREEN_SHAKE.MEDIUM
+		else
+			return Constants.SCREEN_SHAKE.HEAVY
+		end
+	end,
 }
 
 Constants.ENEMY = {
