@@ -64,7 +64,33 @@ function SpiritService:Init()
 end
 
 function SpiritService:OnPlayerAdded(player: Player)
-	print(`[SpiritService] OnPlayerAdded called for {player.Name}`)
+	print("[SpiritService] Player added:", player.Name)
+	
+	-- Wait for character spawn
+	task.spawn(function()
+		task.wait(2) -- Wait 2 seconds before teleporting
+		
+		-- Force Hub spawn using WorkspaceService
+		WorkspaceService:TeleportToHub(player)
+		
+		-- Give player the WelcomeQuest (Kill 3 Slimes)
+		task.wait(0.5)
+		local questUpdateEvent = Remotes:GetEvent("QuestUpdate")
+		if questUpdateEvent then
+			questUpdateEvent:FireClient(player, {
+				questId = "WelcomeQuest",
+				questName = "Welcome to the Omni-Verse",
+				objective = "Kill 3 Slimes",
+				progress = 0,
+				target = 3,
+				status = "Active"
+			})
+		end
+	end)
+	
+	-- Initialize starter spirit if needed
+	print("[SpiritService] OnPlayerAdded called for " .. player.Name)
+
 	-- Wait for data to be ready
 	local data = nil
 	for i = 1, 10 do -- Try for 10 seconds
@@ -76,16 +102,15 @@ function SpiritService:OnPlayerAdded(player: Player)
 	end
 	
 	if not data then
-		warn(`[SpiritService] Could not get data for {player.Name}`)
+		warn("[SpiritService] Could not get data for " .. player.Name)
 		return
 	end
 	
 	self:CheckStarterSpirit(player, data)
-	
 	-- Force Hub Spawn
 	task.delay(2, function()
 		if player and player.Parent then -- Check if player is still in game
-			WorkspaceService.TeleportToHub(player)
+			WorkspaceService:TeleportToHub(player)
 		end
 	end)
 end
@@ -141,7 +166,7 @@ function SpiritService:AddSpirit(player: Player, spiritId: string)
 	
 	inventory.Spirits[uniqueId] = newSpirit
 	
-	print(`[SpiritService] Added Spirit {spiritDef.Name} to {player.Name}`)
+	print("[SpiritService] Added Spirit " .. spiritDef.Name .. " to " .. player.Name .. "!")
 	
 	if _G.UpdateHUD then
 		_G.UpdateHUD(player)
@@ -159,12 +184,12 @@ function SpiritService:EquipSpirit(player: Player, spiritUniqueId: string)
 
 	local spirit = inventory.Spirits[spiritUniqueId]
 	if not spirit then
-		warn(`[SpiritService] Player {player.Name} tried to equip invalid spirit {spiritUniqueId}`)
+		warn("[SpiritService] Player " .. player.Name .. " tried to equip invalid spirit " .. spiritUniqueId)
 		return
 	end
 
 	inventory.EquippedSpirit = spiritUniqueId
-	print(`[SpiritService] {player.Name} equipped {spirit.Name}`)
+	print(player.Name .. " equipped " .. spirit.Name)
 
 	if _G.UpdateHUD then
 		_G.UpdateHUD(player)
@@ -204,7 +229,7 @@ function SpiritService:CheckLevelUp(player: Player, spirit: any)
 		spirit.Exp -= requiredExp
 		spirit.Level += 1
 		self:UpdateStats(spirit)
-		print(`[SpiritService] {spirit.Name} leveled up to {spirit.Level}!`)
+		print("%s leveled up to %d!", spirit.Name, spirit.Level)
 		
 		-- Visual effect could go here
 		
@@ -358,7 +383,7 @@ function SpiritService:UpdateCharacterSpirit(player: Player, spirit: any)
 	spawnFx:Emit(20)
 	task.delay(0.5, function() spawnFx:Destroy() end)
 	
-	print(`[SpiritService] Spawning spirit visual for {player.Name}: {spirit.Name}`)
+	print("[SpiritService] Spawning spirit visual for " .. player.Name .. ": " .. spirit.Name)
 end
 
 function SpiritService:RefreshSpiritVisual(player: Player)

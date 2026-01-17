@@ -18,27 +18,29 @@ SFXController._reverbGroup = nil
 -- Sound IDs organized by category
 local SOUND_IDS = {
 	-- Hit sounds (using valid Roblox library sounds)
-	HIT_NORMAL = "rbxassetid://9114887848", -- Validated hit sound
-	HIT_CRITICAL = "rbxassetid://9114887848", -- Critical hit (same base, pitch modified)
-	HIT_FIRE = "rbxassetid://5152319836",
-	HIT_ICE = "rbxassetid://9113926617",
-	HIT_LIGHTNING = "rbxassetid://9114270126",
+	HIT_NORMAL = "rbxassetid://12222200", -- Validated hit sound
+	HIT_CRITICAL = "rbxassetid://12222200", -- Critical hit (same base, pitch modified)
+	HIT_FIRE = "rbxassetid://12222200",
+	HIT_ICE = "rbxassetid://12222200",
+	HIT_LIGHTNING = "rbxassetid://12222200",
 	
 	-- Ability layers: Charge-up
-	CHARGE_FIREBALL = "rbxassetid://9113651830",
-	CHARGE_DASH = "rbxassetid://9113651830",
-	CHARGE_ICE = "rbxassetid://9113926617",
+	CHARGE_FIREBALL = "rbxassetid://12222216",
+	CHARGE_DASH = "rbxassetid://12222216",
+	CHARGE_ICE = "rbxassetid://12222216",
 	
 	-- Ability layers: Impact
-	IMPACT_FIREBALL = "rbxassetid://5152319836",
-	IMPACT_DASH = "rbxassetid://9113651830",
-	IMPACT_ICE = "rbxassetid://9113926617",
+	IMPACT_FIREBALL = "rbxassetid://12222200",
+	IMPACT_DASH = "rbxassetid://12222200",
+	IMPACT_ICE = "rbxassetid://12222200",
 	
 	-- General SFX (using valid Roblox library sounds)
-	ENEMY_DEATH = "rbxassetid://6518811702", -- Valid defeat/death sound
-	CURRENCY_PICKUP = "rbxassetid://9114277900", -- Valid pickup/coin sound (replaced invalid ID)
-	UI_CLICK = "rbxassetid://9114270126",
-	LEVEL_UP = "rbxassetid://9114277900",
+	SWORD_SWING = "rbxassetid://12222216",
+	ENEMY_DEATH = "rbxassetid://12222200",
+	CURRENCY_PICKUP = "rbxassetid://12222225",
+	UI_CLICK = "rbxassetid://12221984",
+	LEVEL_UP = "rbxassetid://12222225",
+	DAMAGE = "rbxassetid://12222200",
 }
 
 -- Element-specific pitch/volume modifiers

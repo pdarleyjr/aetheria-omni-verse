@@ -476,7 +476,28 @@ function WorkspaceService:SpawnAzureSea()
 end
 
 function WorkspaceService:GenerateHubDecor()
-	-- Create a safe zone/hub area at 0,0,0 if it doesn't exist
+	-- Create Spawn Platform (golden ring indicator for safe zone)
+	local spawnRing = Instance.new("Part")
+	spawnRing.Name = "SpawnRing"
+	spawnRing.Shape = Enum.PartType.Cylinder
+	spawnRing.Size = Vector3.new(0.2, 8, 8)
+	spawnRing.Position = Vector3.new(0, 0.1, 0)
+	spawnRing.Rotation = Vector3.new(0, 0, 90)
+	spawnRing.Anchored = true
+	spawnRing.CanCollide = false
+	spawnRing.Material = Enum.Material.Neon
+	spawnRing.Color = Color3.fromRGB(255, 200, 50)
+	spawnRing.Transparency = 0.3
+	spawnRing.Parent = workspace
+	
+	-- Add PointLight for glow effect
+	local spawnLight = Instance.new("PointLight")
+	spawnLight.Color = Color3.fromRGB(255, 200, 50)
+	spawnLight.Brightness = 2
+	spawnLight.Range = 12
+	spawnLight.Parent = spawnRing
+
+	-- Create Hub Platform
 	local hubFolder = Instance.new("Folder")
 	hubFolder.Name = "HubDecor"
 	hubFolder.Parent = Workspace

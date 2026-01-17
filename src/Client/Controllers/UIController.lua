@@ -218,8 +218,21 @@ function UIController.new()
 end
 
 function UIController:Init()
+	-- Safely get PlayerGui with pcall to prevent crash
+	local success, playerGui = pcall(function()
+		return self.Player:WaitForChild("PlayerGui", 10)
+	end)
+	
+	if not success or not playerGui then
+		warn("[UIController] Failed to get PlayerGui, retrying...")
+		task.spawn(function()
+			task.wait(1)
+			self:Init()
+		end)
+		return
+	end
+	
 	-- Get or create ScreenGui
-	local playerGui = self.Player:WaitForChild("PlayerGui")
 	self.ScreenGui = playerGui:FindFirstChild("MainUI") or Instance.new("ScreenGui")
 	self.ScreenGui.Name = "MainUI"
 	self.ScreenGui.ResetOnSpawn = false
@@ -231,6 +244,7 @@ function UIController:Init()
 	self:CreateNotificationContainer(self.ScreenGui)
 	self:CreateBossBar(self.ScreenGui)
 	self:CreateTitleCard(self.ScreenGui)
+	self:CreateWelcomeFrame(self.ScreenGui)
 	
 	-- Connect remotes
 	self:ConnectRemotes()
@@ -299,11 +313,137 @@ function UIController:CreateMainHUD()
 	-- Bottom-left: Equipped Spirit
 	self:CreateEquippedSpiritDisplay(hudFrame)
 	
-	-- Top-center: Zone name
+	-- Top-center: Zone name (ZoneLabel)
 	self:CreateZoneDisplay(hudFrame)
+	
+	-- Bottom-right: Action Buttons (Mobile Friendly)
+	self:CreateActionButtonsPanel(hudFrame)
 	
 	-- Context buttons
 	self:CreateContextButtons(hudFrame)
+end
+
+function UIController:CreateActionButtonsPanel(parent)
+	local actionPanel = Instance.new("Frame")
+	actionPanel.Name = "ActionButtons"
+	actionPanel.Size = UDim2.new(0, 150, 0, 180)
+	actionPanel.Position = UDim2.new(1, -170, 1, -200)
+	actionPanel.BackgroundTransparency = 1
+	actionPanel.Parent = parent
+	
+	local layout = Instance.new("UIListLayout")
+	layout.Padding = UDim.new(0, 8)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	layout.Parent = actionPanel
+	
+	-- Attack button
+	local attackBtn = self:CreateActionButton("⚔️ Attack", UDim2.new(0, 0, 0, 0), THEME.ACCENT_COLOR)
+	attackBtn.Size = UDim2.new(0, 140, 0, 50)
+	attackBtn.LayoutOrder = 1
+	attackBtn.Parent = actionPanel
+	
+	-- Skill button
+	local skillBtn = self:CreateActionButton("✨ Skill", UDim2.new(0, 0, 0, 0), THEME.ACCENT_SECONDARY)
+	skillBtn.Size = UDim2.new(0, 140, 0, 50)
+	skillBtn.LayoutOrder = 2
+	skillBtn.Parent = actionPanel
+	
+	-- Inventory button
+	local inventoryBtn = self:CreateActionButton("🎒 Items", UDim2.new(0, 0, 0, 0), Color3.fromRGB(80, 150, 80))
+	inventoryBtn.Size = UDim2.new(0, 140, 0, 50)
+	inventoryBtn.LayoutOrder = 3
+	inventoryBtn.Parent = actionPanel
+	
+	self.ActionButtonsPanel = actionPanel
+end
+
+function UIController:CreateWelcomeFrame(parent)
+	-- Black Glassmorphism Center Screen Modal
+	local welcomeFrame = Instance.new("Frame")
+	welcomeFrame.Name = "WelcomeFrame"
+	welcomeFrame.Size = UDim2.new(0, 500, 0, 350)
+	welcomeFrame.Position = UDim2.new(0.5, -250, 0.5, -175)
+	welcomeFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
+	welcomeFrame.BackgroundTransparency = 0.1
+	welcomeFrame.BorderSizePixel = 0
+	welcomeFrame.Visible = true
+	welcomeFrame.ZIndex = 100
+	welcomeFrame.Parent = parent
+	
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 16)
+	corner.Parent = welcomeFrame
+	
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(100, 50, 150)
+	stroke.Transparency = 0.3
+	stroke.Thickness = 2
+	stroke.Parent = welcomeFrame
+	
+	-- Title Text
+	local titleLabel = Instance.new("TextLabel")
+	titleLabel.Name = "Title"
+	titleLabel.Size = UDim2.new(1, -40, 0, 60)
+	titleLabel.Position = UDim2.new(0, 20, 0, 40)
+	titleLabel.BackgroundTransparency = 1
+	titleLabel.Text = "THE OMNI-VERSE IS COLLAPSING."
+	titleLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+	titleLabel.Font = Enum.Font.GothamBold
+	titleLabel.TextSize = 28
+	titleLabel.TextWrapped = true
+	titleLabel.ZIndex = 101
+	titleLabel.Parent = welcomeFrame
+	
+	-- Subtitle Text
+	local subtitleLabel = Instance.new("TextLabel")
+	subtitleLabel.Name = "Subtitle"
+	subtitleLabel.Size = UDim2.new(1, -60, 0, 80)
+	subtitleLabel.Position = UDim2.new(0, 30, 0, 110)
+	subtitleLabel.BackgroundTransparency = 1
+	subtitleLabel.Text = "Dark energies threaten to consume all realms...\n\nOnly you can restore balance to the multiverse."
+	subtitleLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
+	subtitleLabel.Font = Enum.Font.Gotham
+	subtitleLabel.TextSize = 18
+	subtitleLabel.TextWrapped = true
+	subtitleLabel.ZIndex = 101
+	subtitleLabel.Parent = welcomeFrame
+	
+	-- Enter Button
+	local enterButton = Instance.new("TextButton")
+	enterButton.Name = "EnterButton"
+	enterButton.Size = UDim2.new(0, 200, 0, 55)
+	enterButton.Position = UDim2.new(0.5, -100, 1, -90)
+	enterButton.BackgroundColor3 = Color3.fromRGB(100, 50, 180)
+	enterButton.BorderSizePixel = 0
+	enterButton.Text = "ENTER THE HUB"
+	enterButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	enterButton.Font = Enum.Font.GothamBold
+	enterButton.TextSize = 20
+	enterButton.ZIndex = 101
+	enterButton.Parent = welcomeFrame
+	
+	local btnCorner = Instance.new("UICorner")
+	btnCorner.CornerRadius = UDim.new(0, 10)
+	btnCorner.Parent = enterButton
+	
+	self:ApplyButtonEffects(enterButton, enterButton.Size)
+	
+	-- Button click handler
+	enterButton.MouseButton1Click:Connect(function()
+		-- Close the welcome frame with animation
+		UIAnimation.AnimateClose(welcomeFrame, function()
+			welcomeFrame:Destroy()
+		end)
+		
+		-- Fire TeleportToHub remote
+		local teleportEvent = Remotes:GetEvent("TeleportToHub")
+		if teleportEvent then
+			teleportEvent:FireServer()
+		end
+	end)
+	
+	self.WelcomeFrame = welcomeFrame
 end
 
 function UIController:CreateHealthBar(parent)
