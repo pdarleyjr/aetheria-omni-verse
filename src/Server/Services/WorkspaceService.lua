@@ -57,7 +57,7 @@ function WorkspaceService:SetupLighting()
 	atmosphere.Density = 0.3
 	atmosphere.Offset = 0
 	atmosphere.Color = Color3.fromRGB(80, 40, 120)
-	atmosphere.DecayColor = Color3.fromRGB(40, 20, 60)
+	atmosphere.Decay = Color3.fromRGB(40, 20, 60)
 	atmosphere.Glare = 0
 	atmosphere.Haze = 1
 	atmosphere.Parent = Lighting

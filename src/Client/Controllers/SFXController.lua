@@ -18,8 +18,8 @@ SFXController._reverbGroup = nil
 -- Sound IDs organized by category
 local SOUND_IDS = {
 	-- Hit sounds (using valid Roblox library sounds)
-	HIT_NORMAL = "rbxassetid://3932505589", -- Generic hit sound
-	HIT_CRITICAL = "rbxassetid://3932505589", -- Critical hit (same base, pitch modified)
+	HIT_NORMAL = "rbxassetid://9114887848", -- Validated hit sound
+	HIT_CRITICAL = "rbxassetid://9114887848", -- Critical hit (same base, pitch modified)
 	HIT_FIRE = "rbxassetid://5152319836",
 	HIT_ICE = "rbxassetid://9113926617",
 	HIT_LIGHTNING = "rbxassetid://9114270126",
@@ -36,7 +36,7 @@ local SOUND_IDS = {
 	
 	-- General SFX (using valid Roblox library sounds)
 	ENEMY_DEATH = "rbxassetid://6518811702", -- Valid defeat/death sound
-	CURRENCY_PICKUP = "rbxassetid://4612373953", -- Valid pickup/coin sound
+	CURRENCY_PICKUP = "rbxassetid://9114277900", -- Valid pickup/coin sound (replaced invalid ID)
 	UI_CLICK = "rbxassetid://9114270126",
 	LEVEL_UP = "rbxassetid://9114277900",
 }

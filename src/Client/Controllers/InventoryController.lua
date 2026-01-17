@@ -24,7 +24,8 @@ function InventoryController:Init()
 	
 	-- Wait for MainHUD to be created by UIController
 	task.spawn(function()
-		local hud = self.PlayerGui:WaitForChild("MainHUD")
+		local mainUI = self.PlayerGui:WaitForChild("MainUI", 10)
+		local hud = mainUI and mainUI:WaitForChild("MainHUD", 10)
 		if hud then
 			self:CreateInventoryUI(hud)
 		else
