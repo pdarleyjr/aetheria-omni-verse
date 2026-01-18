@@ -401,6 +401,9 @@ function UIController:CreateMainHUD()
 	-- Top-right: Currency display
 	self:CreateCurrencyDisplay(hudFrame)
 	
+	-- Top-right below currency: Minimap placeholder
+	self:CreateMinimapPlaceholder(hudFrame)
+	
 	-- Bottom-left: Equipped Spirit
 	self:CreateEquippedSpiritDisplay(hudFrame)
 	
@@ -626,6 +629,51 @@ function UIController:CreateManaBar(parent)
 	
 	self.ManaBar = barFill
 	self.ManaLabel = valueLabel
+end
+
+function UIController:CreateMinimapPlaceholder(parent)
+	local container = self:CreateGlassPanel(UDim2.new(0, 150, 0, 150), UDim2.new(1, -170, 0, 80))
+	container.Name = "MinimapPlaceholder"
+	container.Parent = parent
+	
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 0, 20)
+	label.Position = UDim2.new(0, 0, 0, 5)
+	label.BackgroundTransparency = 1
+	label.Text = "🗺️ Minimap"
+	label.TextColor3 = THEME.TEXT_MUTED
+	label.Font = THEME.FONT
+	label.TextSize = 12
+	label.Parent = container
+	
+	-- Placeholder frame for future minimap content
+	local mapFrame = Instance.new("Frame")
+	mapFrame.Name = "MapContent"
+	mapFrame.Size = UDim2.new(1, -10, 1, -30)
+	mapFrame.Position = UDim2.new(0, 5, 0, 25)
+	mapFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+	mapFrame.BackgroundTransparency = 0.5
+	mapFrame.BorderSizePixel = 0
+	mapFrame.Parent = container
+	
+	local mapCorner = Instance.new("UICorner")
+	mapCorner.CornerRadius = UDim.new(0, 6)
+	mapCorner.Parent = mapFrame
+	
+	-- Player indicator dot
+	local playerDot = Instance.new("Frame")
+	playerDot.Name = "PlayerIndicator"
+	playerDot.Size = UDim2.new(0, 8, 0, 8)
+	playerDot.Position = UDim2.new(0.5, -4, 0.5, -4)
+	playerDot.BackgroundColor3 = THEME.ACCENT_COLOR
+	playerDot.BorderSizePixel = 0
+	playerDot.Parent = mapFrame
+	
+	local dotCorner = Instance.new("UICorner")
+	dotCorner.CornerRadius = UDim.new(1, 0)
+	dotCorner.Parent = playerDot
+	
+	self.MinimapPlaceholder = container
 end
 
 function UIController:CreateCurrencyDisplay(parent)

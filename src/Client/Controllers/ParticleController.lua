@@ -110,6 +110,76 @@ function ParticleController:SpawnEnvironmentalEffects()
 	self:SpawnLightReactiveDust()
 end
 
+function ParticleController:ApplyZoneEffects(zoneName: string)
+	-- Cleanup existing
+	for _, emitter in ipairs(self._environmentalEmitters.fog) do
+		if emitter and emitter.Parent then
+			emitter:Destroy()
+		end
+	end
+	self._environmentalEmitters.fog = {}
+	
+	for _, emitter in ipairs(self._environmentalEmitters.debris) do
+		if emitter and emitter.Parent then
+			emitter:Destroy()
+		end
+	end
+	self._environmentalEmitters.debris = {}
+	
+	for _, emitter in ipairs(self._environmentalEmitters.dust) do
+		if emitter and emitter.Parent then
+			emitter:Destroy()
+		end
+	end
+	self._environmentalEmitters.dust = {}
+	
+	-- Apply zone-specific Lighting atmosphere
+	self:ApplyZoneLighting(zoneName)
+	
+	-- Spawn environmental effects
+	self:SpawnEnvironmentalEffects()
+end
+
+function ParticleController:ApplyZoneLighting(zoneName: string)
+	local zoneConfigs = {
+		["Glitch Wastes"] = {
+			Ambient = Color3.fromRGB(40, 0, 40),
+			OutdoorAmbient = Color3.fromRGB(60, 20, 60),
+			Brightness = 1.2,
+			ColorShift_Top = Color3.fromRGB(100, 0, 100),
+			FogColor = Color3.fromRGB(30, 0, 30),
+			FogEnd = 500,
+		},
+		["Azure Sea"] = {
+			Ambient = Color3.fromRGB(50, 80, 120),
+			OutdoorAmbient = Color3.fromRGB(100, 150, 200),
+			Brightness = 2.0,
+			ColorShift_Top = Color3.fromRGB(150, 200, 255),
+			FogColor = Color3.fromRGB(180, 220, 255),
+			FogEnd = 1000,
+		},
+		["Hub"] = {
+			Ambient = Color3.fromRGB(80, 80, 80),
+			OutdoorAmbient = Color3.fromRGB(127, 127, 127),
+			Brightness = 2.0,
+			ColorShift_Top = Color3.fromRGB(200, 200, 255),
+			FogColor = Color3.fromRGB(192, 192, 192),
+			FogEnd = 2000,
+		},
+	}
+	
+	local config = zoneConfigs[zoneName] or zoneConfigs["Hub"]
+	
+	TweenService:Create(Lighting, TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Ambient = config.Ambient,
+		OutdoorAmbient = config.OutdoorAmbient,
+		Brightness = config.Brightness,
+		ColorShift_Top = config.ColorShift_Top,
+		FogColor = config.FogColor,
+		FogEnd = config.FogEnd,
+	}):Play()
+end
+
 function ParticleController:SpawnVolumetricFog()
 	-- Cleanup existing
 	for _, emitter in ipairs(self._environmentalEmitters.fog) do

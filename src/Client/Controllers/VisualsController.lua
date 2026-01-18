@@ -844,7 +844,7 @@ function VisualsController:CreatePathfindingArrow()
 	arrow.Anchored = true
 	arrow.CanCollide = false
 	arrow.CastShadow = false
-	arrow.Transparency = 0.3
+	arrow.Transparency = 0.2 -- Phase 40: Start at 0.2 for pulsing
 	arrow.Parent = Workspace
 	
 	-- Add a cone mesh to make it arrow-shaped
@@ -863,6 +863,17 @@ function VisualsController:CreatePathfindingArrow()
 	-- Target position: Glitch Wastes Gate
 	local targetPos = Vector3.new(0, 5, 200)
 	
+	-- Phase 40: Add pulsing transparency animation (0.2 to 0.8)
+	local pulseConnection
+	local function startPulse()
+		local pulseTween = TweenService:Create(arrow, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+			Transparency = 0.8
+		})
+		pulseTween:Play()
+		return pulseTween
+	end
+	local pulseTween = startPulse()
+	
 	-- Update arrow position and rotation every frame
 	local heartbeatConnection = RunService.Heartbeat:Connect(function()
 		local character = player.Character
@@ -871,8 +882,8 @@ function VisualsController:CreatePathfindingArrow()
 		local root = character:FindFirstChild("HumanoidRootPart")
 		if not root then return end
 		
-		-- Position 15 studs above player
-		local arrowPos = root.Position + Vector3.new(0, 15, 0)
+		-- Phase 40: Position 10 studs above player (changed from 15)
+		local arrowPos = root.Position + Vector3.new(0, 10, 0)
 		
 		-- Calculate direction to target
 		local direction = (targetPos - arrowPos).Unit
@@ -884,10 +895,13 @@ function VisualsController:CreatePathfindingArrow()
 	end)
 	
 	self._maid:GiveTask(heartbeatConnection)
+	self._maid:GiveTask(function()
+		if pulseTween then pulseTween:Cancel() end
+	end)
 	self._maid:GiveTask(arrow)
 	
 	self.PathfindingArrow = arrow
-	print("[VisualsController] Created Pathfinding Arrow pointing toward Glitch Wastes Gate")
+	print("[VisualsController] Created Pathfinding Arrow 10 studs above player with pulsing transparency")
 end
 
 return VisualsController

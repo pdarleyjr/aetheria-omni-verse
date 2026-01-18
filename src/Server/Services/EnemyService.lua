@@ -389,8 +389,8 @@ function EnemyService:SpawnBoss(name: string, position: Vector3)
 	model:SetAttribute("Telegraphing", false)
 	
 	local humanoid = Instance.new("Humanoid")
-	humanoid.MaxHealth = bossDef.Health
-	humanoid.Health = bossDef.Health
+	humanoid.MaxHealth = 50000 -- Phase 40: Set to 50000
+	humanoid.Health = 50000
 	humanoid.Parent = model
 	
 	local rootPart = Instance.new("Part")
@@ -406,15 +406,39 @@ function EnemyService:SpawnBoss(name: string, position: Vector3)
 	model.PrimaryPart = rootPart
 	model.Parent = self.EnemyFolder
 	
+	-- Phase 40: Scale the model to 4.0
+	model:ScaleTo(4.0)
+	
+	-- Phase 40: Add BillboardGui with boss name
+	local bossLabel = Instance.new("BillboardGui")
+	bossLabel.Name = "BossNameLabel"
+	bossLabel.Adornee = rootPart
+	bossLabel.Size = UDim2.new(0, 300, 0, 50)
+	bossLabel.StudsOffset = Vector3.new(0, 12, 0)
+	bossLabel.AlwaysOnTop = true
+	bossLabel.Parent = rootPart
+	
+	local nameText = Instance.new("TextLabel")
+	nameText.Name = "NameText"
+	nameText.Size = UDim2.new(1, 0, 1, 0)
+	nameText.BackgroundTransparency = 1
+	nameText.Text = "☠️ THE GLITCH KING ☠️"
+	nameText.TextColor3 = Color3.fromRGB(255, 0, 0)
+	nameText.TextStrokeTransparency = 0
+	nameText.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	nameText.Font = Enum.Font.GothamBold
+	nameText.TextSize = 30
+	nameText.Parent = bossLabel
+	
 	initEnemyData(model)
 	addToGrid(model)
 	
 	local BossSpawned = Remotes.GetEvent("BossSpawned")
 	if BossSpawned then
-		BossSpawned:FireAllClients({Name = name, MaxHealth = bossDef.Health})
+		BossSpawned:FireAllClients({Name = name, MaxHealth = 50000})
 	end
 	
-	print("[EnemyService] Spawned Boss: " .. name)
+	print("[EnemyService] Spawned Boss: " .. name .. " with scale 4.0 and 50000 HP")
 end
 
 function EnemyService:SpawnEnemy(name: string, position: Vector3)
