@@ -93,31 +93,79 @@ function Remotes.Init()
 	-- Enemy Remotes (additional)
 	_events["EnemyDeath"] = createRemote("EnemyDeath", "RemoteEvent")
 	
+	-- UI Update Remotes (used by UIController)
+	_events["UpdateHealth"] = createRemote("UpdateHealth", "RemoteEvent")
+	_events["UpdateMana"] = createRemote("UpdateMana", "RemoteEvent")
+	_events["UpdateGold"] = createRemote("UpdateGold", "RemoteEvent")
+	_events["ZoneChanged"] = createRemote("ZoneChanged", "RemoteEvent")
+	_events["ShowNotification"] = createRemote("ShowNotification", "RemoteEvent")
+	_events["BossHealthUpdate"] = createRemote("BossHealthUpdate", "RemoteEvent")
+	
 	print("✓ All Remote Events created")
 end
 
 function Remotes.GetEvent(name)
+	-- Validate name is a string
+	if type(name) ~= "string" or name == "" then
+		warn("[Remotes] GetEvent called with invalid name:", tostring(name))
+		return nil
+	end
+	
 	if _events[name] then return _events[name] end
 	
-	local folder = ReplicatedStorage:WaitForChild("Remotes")
-	local remote = folder:WaitForChild(name)
+	local folder = ReplicatedStorage:FindFirstChild("Remotes")
+	if not folder then
+		folder = ReplicatedStorage:WaitForChild("Remotes", 5)
+		if not folder then
+			warn("[Remotes] Remotes folder not found")
+			return nil
+		end
+	end
+	
+	local remote = folder:WaitForChild(name, 5)
+	if not remote then
+		warn("[Remotes] RemoteEvent not found:", name)
+		return nil
+	end
+	
 	if remote:IsA("RemoteEvent") then
 		_events[name] = remote
 		return remote
 	end
-	error("RemoteEvent not found: " .. name)
+	warn("[Remotes] " .. name .. " is not a RemoteEvent")
+	return nil
 end
 
 function Remotes.GetFunction(name)
+	-- Validate name is a string
+	if type(name) ~= "string" or name == "" then
+		warn("[Remotes] GetFunction called with invalid name:", tostring(name))
+		return nil
+	end
+	
 	if _functions[name] then return _functions[name] end
 	
-	local folder = ReplicatedStorage:WaitForChild("Remotes")
-	local remote = folder:WaitForChild(name)
+	local folder = ReplicatedStorage:FindFirstChild("Remotes")
+	if not folder then
+		folder = ReplicatedStorage:WaitForChild("Remotes", 5)
+		if not folder then
+			warn("[Remotes] Remotes folder not found")
+			return nil
+		end
+	end
+	
+	local remote = folder:WaitForChild(name, 5)
+	if not remote then
+		warn("[Remotes] RemoteFunction not found:", name)
+		return nil
+	end
+	
 	if remote:IsA("RemoteFunction") then
 		_functions[name] = remote
 		return remote
 	end
-	error("RemoteFunction not found: " .. name)
+	warn("[Remotes] " .. name .. " is not a RemoteFunction")
+	return nil
 end
 
 return Remotes
