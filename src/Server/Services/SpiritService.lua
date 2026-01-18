@@ -24,7 +24,7 @@ function SpiritService:Init()
 	print("[SpiritService] Init called")
 	
 	-- Listen for EquipSpirit
-	local EquipSpiritEvent = Remotes.GetEvent("EquipSpirit")
+	local EquipSpiritEvent = Remotes:GetEvent("EquipSpirit")
 	maid:GiveTask(EquipSpiritEvent.OnServerEvent:Connect(function(player, spiritUniqueId)
 		self:EquipSpirit(player, spiritUniqueId)
 	end))

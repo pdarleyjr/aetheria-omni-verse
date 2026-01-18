@@ -218,40 +218,23 @@ function UIController.new()
 end
 
 function UIController:Init()
-	-- Simple reliable PlayerGui access with long timeout
-	self.PlayerGui = self.Player:WaitForChild("PlayerGui", 30)
-	
-	if not self.PlayerGui then
-		warn("[UIController] Failed to get PlayerGui after 30 seconds")
-		return
-	end
-	
+	self.Player = Players.LocalPlayer
+	self.PlayerGui = self.Player:WaitForChild("PlayerGui") -- Simple wait, no timeout
+	self.Maid = Maid.new()
 	print("[UIController] Initialized - PlayerGui acquired")
 end
 
 function UIController:Start()
-	if not self.PlayerGui then
-		warn("[UIController] Cannot start - no PlayerGui")
-		return
-	end
-	
-	-- Force HUD creation if not present
-	if not self.PlayerGui:FindFirstChild("MainHUD") then
-		self:CreateMainHUD()
-	end
+	self:CreateMainHUD()
+	self:CreateWelcomeFrame()
 	
 	-- Create notification container and other UI elements
-	self:CreateNotificationContainer(self.PlayerGui:FindFirstChild("MainHUD") or self.PlayerGui)
-	self:CreateBossBar(self.PlayerGui:FindFirstChild("MainHUD") or self.PlayerGui)
-	self:CreateTitleCard(self.PlayerGui:FindFirstChild("MainHUD") or self.PlayerGui)
+	self:CreateNotificationContainer(self.ScreenGui)
+	self:CreateBossBar(self.ScreenGui)
+	self:CreateTitleCard(self.ScreenGui)
 	
 	-- Connect remotes
 	self:ConnectRemotes()
-	
-	-- Show Welcome Frame after 1 second delay
-	task.delay(1, function()
-		self:CreateWelcomeFrame()
-	end)
 	
 	print("[UIController] Started with Phase 39 UI fixes")
 end
