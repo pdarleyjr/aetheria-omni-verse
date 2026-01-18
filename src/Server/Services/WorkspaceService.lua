@@ -568,6 +568,68 @@ function WorkspaceService:GenerateHubDecor()
 		light.Parent = pillar
 	end
 	
+	-- Phase 39: Green Neon Spawn Pad
+	local spawnPad = Instance.new("Part")
+	spawnPad.Name = "SpawnPad"
+	spawnPad.Shape = Enum.PartType.Cylinder
+	spawnPad.Size = Vector3.new(0.5, 20, 20) -- Cylinder height is X axis
+	spawnPad.CFrame = CFrame.new(0, 0.1, 0) * CFrame.Angles(0, 0, math.rad(90)) -- Rotate to lay flat
+	spawnPad.Material = Enum.Material.Neon
+	spawnPad.BrickColor = BrickColor.new("Lime green")
+	spawnPad.Anchored = true
+	spawnPad.CanCollide = false
+	spawnPad.Parent = hubFolder
+	
+	-- Phase 39: Red Neon Gate Arch at Z = 180
+	local gateX = 0
+	local gateZ = 180
+	local pillarHeight = 20
+	local pillarWidth = 3
+	local archWidth = 20
+	
+	-- Left Pillar
+	local leftPillar = Instance.new("Part")
+	leftPillar.Name = "GateLeftPillar"
+	leftPillar.Size = Vector3.new(pillarWidth, pillarHeight, pillarWidth)
+	leftPillar.Position = Vector3.new(gateX - (archWidth / 2), pillarHeight / 2, gateZ)
+	leftPillar.Material = Enum.Material.Neon
+	leftPillar.BrickColor = BrickColor.new("Bright red")
+	leftPillar.Anchored = true
+	leftPillar.CanCollide = true
+	leftPillar.Parent = hubFolder
+	
+	-- Right Pillar
+	local rightPillar = Instance.new("Part")
+	rightPillar.Name = "GateRightPillar"
+	rightPillar.Size = Vector3.new(pillarWidth, pillarHeight, pillarWidth)
+	rightPillar.Position = Vector3.new(gateX + (archWidth / 2), pillarHeight / 2, gateZ)
+	rightPillar.Material = Enum.Material.Neon
+	rightPillar.BrickColor = BrickColor.new("Bright red")
+	rightPillar.Anchored = true
+	rightPillar.CanCollide = true
+	rightPillar.Parent = hubFolder
+	
+	-- Top Beam
+	local topBeam = Instance.new("Part")
+	topBeam.Name = "GateTopBeam"
+	topBeam.Size = Vector3.new(archWidth + pillarWidth, pillarWidth, pillarWidth)
+	topBeam.Position = Vector3.new(gateX, pillarHeight + (pillarWidth / 2), gateZ)
+	topBeam.Material = Enum.Material.Neon
+	topBeam.BrickColor = BrickColor.new("Bright red")
+	topBeam.Anchored = true
+	topBeam.CanCollide = true
+	topBeam.Parent = hubFolder
+	
+	-- Add PointLight for glow effect
+	local archLight = Instance.new("PointLight")
+	archLight.Color = Color3.fromRGB(255, 0, 0)
+	archLight.Brightness = 2
+	archLight.Range = 25
+	archLight.Parent = topBeam
+
+	print("[WorkspaceService] Phase 39: Created spawn pad and gate arch")
+	makePart:Delete()
+
 	print("[WorkspaceService] Generated Hub Decor")
 end
 

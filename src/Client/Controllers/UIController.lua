@@ -218,38 +218,42 @@ function UIController.new()
 end
 
 function UIController:Init()
-	-- Safely get PlayerGui with pcall to prevent crash
-	local success, playerGui = pcall(function()
-		return self.Player:WaitForChild("PlayerGui", 10)
-	end)
+	-- Simple reliable PlayerGui access with long timeout
+	self.PlayerGui = self.Player:WaitForChild("PlayerGui", 30)
 	
-	if not success or not playerGui then
-		warn("[UIController] Failed to get PlayerGui, retrying...")
-		task.spawn(function()
-			task.wait(1)
-			self:Init()
-		end)
+	if not self.PlayerGui then
+		warn("[UIController] Failed to get PlayerGui after 30 seconds")
 		return
 	end
 	
-	-- Get or create ScreenGui
-	self.ScreenGui = playerGui:FindFirstChild("MainUI") or Instance.new("ScreenGui")
-	self.ScreenGui.Name = "MainUI"
-	self.ScreenGui.ResetOnSpawn = false
-	self.ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	self.ScreenGui.Parent = playerGui
+	print("[UIController] Initialized - PlayerGui acquired")
+end
+
+function UIController:Start()
+	if not self.PlayerGui then
+		warn("[UIController] Cannot start - no PlayerGui")
+		return
+	end
 	
-	-- Create UI elements
-	self:CreateMainHUD()
-	self:CreateNotificationContainer(self.ScreenGui)
-	self:CreateBossBar(self.ScreenGui)
-	self:CreateTitleCard(self.ScreenGui)
-	self:CreateWelcomeFrame(self.ScreenGui)
+	-- Force HUD creation if not present
+	if not self.PlayerGui:FindFirstChild("MainHUD") then
+		self:CreateMainHUD()
+	end
+	
+	-- Create notification container and other UI elements
+	self:CreateNotificationContainer(self.PlayerGui:FindFirstChild("MainHUD") or self.PlayerGui)
+	self:CreateBossBar(self.PlayerGui:FindFirstChild("MainHUD") or self.PlayerGui)
+	self:CreateTitleCard(self.PlayerGui:FindFirstChild("MainHUD") or self.PlayerGui)
 	
 	-- Connect remotes
 	self:ConnectRemotes()
 	
-	print("[UIController] Initialized with Phase 37 UI polish")
+	-- Show Welcome Frame after 1 second delay
+	task.delay(1, function()
+		self:CreateWelcomeFrame()
+	end)
+	
+	print("[UIController] Started with Phase 39 UI fixes")
 end
 
 function UIController:CreateGlassPanel(size, position)
@@ -296,12 +300,116 @@ function UIController:CreateActionButton(text, position, color)
 end
 
 function UIController:CreateMainHUD()
+	-- Create ScreenGui for MainHUD
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.Name = "MainHUD"
+	screenGui.ResetOnSpawn = false
+	screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	screenGui.Parent = self.PlayerGui
+	self.ScreenGui = screenGui
+	
 	local hudFrame = Instance.new("Frame")
-	hudFrame.Name = "MainHUD"
+	hudFrame.Name = "HUDFrame"
 	hudFrame.Size = UDim2.new(1, 0, 1, 0)
 	hudFrame.BackgroundTransparency = 1
-	hudFrame.Parent = self.ScreenGui
+	hudFrame.Parent = screenGui
 	self.MainHUD = hudFrame
+	
+	-- Top-center: Zone Label
+	local zoneLabel = Instance.new("TextLabel")
+	zoneLabel.Name = "ZoneLabel"
+	zoneLabel.Size = UDim2.new(0, 300, 0, 40)
+	zoneLabel.Position = UDim2.new(0.5, -150, 0.02, 0)
+	zoneLabel.AnchorPoint = Vector2.new(0, 0)
+	zoneLabel.BackgroundTransparency = 1
+	zoneLabel.Text = "🏠 Hub Zone"
+	zoneLabel.TextColor3 = THEME.TEXT_COLOR
+	zoneLabel.TextStrokeTransparency = 0.5
+	zoneLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	zoneLabel.Font = THEME.FONT
+	zoneLabel.TextSize = 24
+	zoneLabel.Parent = hudFrame
+	self.ZoneLabel = zoneLabel
+	
+	-- Left-center: Quest Frame (Glassmorphism)
+	local questFrame = self:CreateGlassPanel(UDim2.new(0, 250, 0, 150), UDim2.new(0, 20, 0.4, 0))
+	questFrame.Name = "QuestFrame"
+	questFrame.Parent = hudFrame
+	
+	local questTitle = Instance.new("TextLabel")
+	questTitle.Name = "QuestTitle"
+	questTitle.Size = UDim2.new(1, -20, 0, 30)
+	questTitle.Position = UDim2.new(0, 10, 0, 10)
+	questTitle.BackgroundTransparency = 1
+	questTitle.Text = "📜 Active Quest"
+	questTitle.TextColor3 = THEME.ACCENT_COLOR
+	questTitle.Font = THEME.FONT
+	questTitle.TextSize = 16
+	questTitle.TextXAlignment = Enum.TextXAlignment.Left
+	questTitle.Parent = questFrame
+	
+	local questDesc = Instance.new("TextLabel")
+	questDesc.Name = "QuestDesc"
+	questDesc.Size = UDim2.new(1, -20, 0, 80)
+	questDesc.Position = UDim2.new(0, 10, 0, 45)
+	questDesc.BackgroundTransparency = 1
+	questDesc.Text = "Head North to the Glitch Wastes Gate!"
+	questDesc.TextColor3 = THEME.TEXT_COLOR
+	questDesc.Font = Enum.Font.Gotham
+	questDesc.TextSize = 14
+	questDesc.TextWrapped = true
+	questDesc.TextXAlignment = Enum.TextXAlignment.Left
+	questDesc.TextYAlignment = Enum.TextYAlignment.Top
+	questDesc.Parent = questFrame
+	
+	self.QuestFrame = questFrame
+	
+	-- Bottom-right: Action Panel (Mobile-friendly buttons)
+	local actionPanel = Instance.new("Frame")
+	actionPanel.Name = "ActionPanel"
+	actionPanel.Size = UDim2.new(0, 160, 0, 200)
+	actionPanel.Position = UDim2.new(1, -180, 1, -220)
+	actionPanel.BackgroundColor3 = THEME.PANEL_COLOR
+	actionPanel.BackgroundTransparency = THEME.GLASS_TRANSPARENCY
+	actionPanel.BorderSizePixel = 0
+	actionPanel.Parent = hudFrame
+	
+	local actionCorner = Instance.new("UICorner")
+	actionCorner.CornerRadius = THEME.CORNER_RADIUS
+	actionCorner.Parent = actionPanel
+	
+	local actionStroke = Instance.new("UIStroke")
+	actionStroke.Color = THEME.STROKE_COLOR
+	actionStroke.Transparency = 0.5
+	actionStroke.Thickness = 1
+	actionStroke.Parent = actionPanel
+	
+	local layout = Instance.new("UIListLayout")
+	layout.Padding = UDim.new(0, 10)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	layout.VerticalAlignment = Enum.VerticalAlignment.Center
+	layout.Parent = actionPanel
+	
+	-- Attack button
+	local attackBtn = self:CreateActionButton("⚔️ Attack", UDim2.new(0, 0, 0, 0), THEME.ACCENT_COLOR)
+	attackBtn.Size = UDim2.new(0, 140, 0, 50)
+	attackBtn.LayoutOrder = 1
+	attackBtn.Parent = actionPanel
+	
+	-- Skill button
+	local skillBtn = self:CreateActionButton("✨ Skill", UDim2.new(0, 0, 0, 0), THEME.ACCENT_SECONDARY)
+	skillBtn.Size = UDim2.new(0, 140, 0, 50)
+	skillBtn.LayoutOrder = 2
+	skillBtn.Parent = actionPanel
+	
+	-- Items button
+	local itemsBtn = self:CreateActionButton("🎒 Items", UDim2.new(0, 0, 0, 0), Color3.fromRGB(80, 150, 80))
+	itemsBtn.Size = UDim2.new(0, 140, 0, 50)
+	itemsBtn.LayoutOrder = 3
+	itemsBtn.Parent = actionPanel
+	
+	self.ActionPanel = actionPanel
 	
 	-- Top-left: Health and Mana bars
 	self:CreateHealthBar(hudFrame)
@@ -313,14 +421,7 @@ function UIController:CreateMainHUD()
 	-- Bottom-left: Equipped Spirit
 	self:CreateEquippedSpiritDisplay(hudFrame)
 	
-	-- Top-center: Zone name (ZoneLabel)
-	self:CreateZoneDisplay(hudFrame)
-	
-	-- Bottom-right: Action Buttons (Mobile Friendly)
-	self:CreateActionButtonsPanel(hudFrame)
-	
-	-- Context buttons
-	self:CreateContextButtons(hudFrame)
+	print("[UIController] Created MainHUD with ZoneLabel, QuestFrame, and ActionPanel")
 end
 
 function UIController:CreateActionButtonsPanel(parent)
@@ -358,7 +459,11 @@ function UIController:CreateActionButtonsPanel(parent)
 	self.ActionButtonsPanel = actionPanel
 end
 
-function UIController:CreateWelcomeFrame(parent)
+function UIController:CreateWelcomeFrame()
+	if not self.PlayerGui then return end
+	
+	local parent = self.PlayerGui:FindFirstChild("MainHUD") or self.PlayerGui
+	
 	-- Black Glassmorphism Center Screen Modal
 	local welcomeFrame = Instance.new("Frame")
 	welcomeFrame.Name = "WelcomeFrame"
@@ -442,8 +547,6 @@ function UIController:CreateWelcomeFrame(parent)
 			teleportEvent:FireServer()
 		end
 	end)
-	
-	self.WelcomeFrame = welcomeFrame
 end
 
 function UIController:CreateHealthBar(parent)

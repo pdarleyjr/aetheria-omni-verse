@@ -34,6 +34,9 @@ function VisualsController:Start()
 	
 	self:SetupLighting()
 	
+	-- Create 3D Guide Arrow pointing toward Glitch Wastes Gate
+	self:CreatePathfindingArrow()
+	
 	local bossAttack = Remotes.GetEvent("BossAttack")
 	self._maid:GiveTask(bossAttack.OnClientEvent:Connect(function(attackName, duration)
 		if attackName == "Spike" then
@@ -826,6 +829,65 @@ function VisualsController:PlayTelegraphIndicator(position: Vector3, duration: n
 	
 	Debris:AddItem(indicator, duration + 0.1)
 	Debris:AddItem(inner, duration + 0.1)
+end
+
+function VisualsController:CreatePathfindingArrow()
+	local player = Players.LocalPlayer
+	
+	-- Create red neon cone arrow
+	local arrow = Instance.new("Part")
+	arrow.Name = "PathfindingArrow"
+	arrow.Size = Vector3.new(4, 8, 4)
+	arrow.Shape = Enum.PartType.Ball -- Using ball as base, we'll make it cone-like with mesh
+	arrow.Material = Enum.Material.Neon
+	arrow.BrickColor = BrickColor.new("Bright red")
+	arrow.Anchored = true
+	arrow.CanCollide = false
+	arrow.CastShadow = false
+	arrow.Transparency = 0.3
+	arrow.Parent = Workspace
+	
+	-- Add a cone mesh to make it arrow-shaped
+	local mesh = Instance.new("SpecialMesh")
+	mesh.MeshType = Enum.MeshType.Cylinder
+	mesh.Scale = Vector3.new(0.5, 2, 0.5)
+	mesh.Parent = arrow
+	
+	-- Add glow effect
+	local pointLight = Instance.new("PointLight")
+	pointLight.Color = Color3.fromRGB(255, 50, 50)
+	pointLight.Brightness = 2
+	pointLight.Range = 15
+	pointLight.Parent = arrow
+	
+	-- Target position: Glitch Wastes Gate
+	local targetPos = Vector3.new(0, 5, 200)
+	
+	-- Update arrow position and rotation every frame
+	local heartbeatConnection = RunService.Heartbeat:Connect(function()
+		local character = player.Character
+		if not character then return end
+		
+		local root = character:FindFirstChild("HumanoidRootPart")
+		if not root then return end
+		
+		-- Position 15 studs above player
+		local arrowPos = root.Position + Vector3.new(0, 15, 0)
+		
+		-- Calculate direction to target
+		local direction = (targetPos - arrowPos).Unit
+		
+		-- Use CFrame.lookAt and rotate to point downward like an arrow
+		local lookCFrame = CFrame.lookAt(arrowPos, arrowPos + direction)
+		-- Rotate 90 degrees on X axis so cylinder points forward
+		arrow.CFrame = lookCFrame * CFrame.Angles(math.rad(90), 0, 0)
+	end)
+	
+	self._maid:GiveTask(heartbeatConnection)
+	self._maid:GiveTask(arrow)
+	
+	self.PathfindingArrow = arrow
+	print("[VisualsController] Created Pathfinding Arrow pointing toward Glitch Wastes Gate")
 end
 
 return VisualsController
